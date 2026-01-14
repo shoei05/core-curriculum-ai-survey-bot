@@ -1,0 +1,370 @@
+:root {
+  --accent: #c5487b;
+  --accent-deep: #a23a63;
+  --accent-soft: #f4d7e4;
+  --ink: #231b20;
+  --muted: #6d5b63;
+  --surface: #f9f4f7;
+  --card: #ffffff;
+  --border: #ead6e1;
+  --shadow: 0 24px 60px rgba(35, 27, 32, 0.12);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  background:
+    radial-gradient(1200px 800px at 12% -10%, #f8e5ef 0%, transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, #f5dee9 0%, transparent 55%),
+    linear-gradient(180deg, #f8f2f5 0%, #f7f2f5 100%);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Times New Roman", serif;
+  letter-spacing: 0.02em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+main {
+  display: block;
+}
+
+.page-shell {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.top-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-deep);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.home-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.hero-title {
+  font-size: clamp(1.8rem, 2.4vw, 2.6rem);
+}
+
+.hero-subtitle {
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.hero-card {
+  border-radius: 18px;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.template-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.template-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: var(--card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.template-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(197, 72, 123, 0.12);
+}
+
+.template-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.template-description {
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.consent-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.consent-list {
+  margin: 12px 0 18px;
+  color: var(--muted);
+  padding-left: 18px;
+  line-height: 1.6;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(35, 27, 32, 0.08);
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: #fff;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+  transform: none;
+}
+
+.survey-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.survey-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timer {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff7fb;
+  border: 1px solid #e9b6cf;
+  color: var(--accent-deep);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.timer.is-urgent {
+  color: #b00020;
+  border-color: #f0a4bf;
+  background: #fff0f6;
+}
+
+.alert {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff4d2;
+  border: 1px solid #f0c36d;
+  color: #7b4b08;
+  margin-bottom: 16px;
+}
+
+.survey-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 960px) {
+  .survey-grid {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+}
+
+.chat-panel,
+.side-panel {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.message-stack {
+  display: grid;
+  gap: 12px;
+  min-height: 240px;
+}
+
+.message {
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.message-user {
+  background: #fff7fb;
+  border-color: #efc1d6;
+}
+
+.message-ai {
+  background: #ffffff;
+}
+
+.message-role {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.message-content {
+  white-space: pre-wrap;
+}
+
+.thinking {
+  color: #8c7a82;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chip {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: #fde9f2;
+  color: var(--accent-deep);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.text-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 10px;
+}
+
+.panel-title {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.summary-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.keyword-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.keyword-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.keyword-title {
+  font-weight: 700;
+}
+
+.log-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.log-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.log-item summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.log-section {
+  margin-top: 8px;
+}
+
+.log-section-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}

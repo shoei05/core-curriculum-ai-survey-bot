@@ -6,28 +6,38 @@ export default async function Home() {
 
   return (
     <main>
-      <h1 style={{ margin: "12px 0 4px" }}>{process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}</h1>
-      <p style={{ marginTop: 0, color: "#555" }}>
-        教員向け周辺調査を、チャット形式で回答できるボットです（MVPテンプレート）。
-      </p>
+      <section className="home-hero">
+        <div>
+          <span className="pill">深掘りインタビュー支援</span>
+          <h1 className="hero-title">
+            {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
+          </h1>
+          <p className="hero-subtitle">
+            教員向け周辺調査を、落ち着いた対話で整理しながら回答できるボットです。
+            回答は要約とカテゴリ別キーワードに自動整理されます。
+          </p>
+        </div>
+        <div className="hero-card">
+          <div className="template-title">調査の流れ</div>
+          <ul className="consent-list" style={{ marginTop: 12 }}>
+            <li>同意確認後にAIが最初の質問を提示</li>
+            <li>自由回答を深掘りしながら進行</li>
+            <li>終了時に要約とキーワードを生成</li>
+          </ul>
+        </div>
+      </section>
 
       <section style={{ marginTop: 24 }}>
-        <h2>利用可能なアンケート</h2>
-        <div style={{ display: "grid", gap: 12 }}>
+        <h2 className="panel-title">利用可能なアンケート</h2>
+        <div className="template-grid">
           {templates.map((t) => (
             <Link
               key={t.slug}
               href={`/surveys/${t.slug}`}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 12,
-                padding: 12,
-                textDecoration: "none",
-                color: "inherit"
-              }}
+              className="template-card"
             >
-              <div style={{ fontWeight: 700 }}>{t.title}</div>
-              <div style={{ color: "#555", marginTop: 4 }}>{t.description}</div>
+              <div className="template-title">{t.title}</div>
+              <div className="template-description">{t.description}</div>
             </Link>
           ))}
         </div>
