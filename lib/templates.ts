@@ -1,3 +1,5 @@
+import { getKnowledgePrompt } from "./knowledge";
+
 export type SurveyTemplate = {
   slug: string;
   title: string;
@@ -5,12 +7,7 @@ export type SurveyTemplate = {
   systemPrompt: string;
 };
 
-const templates: SurveyTemplate[] = [
-  {
-    slug: "core-curriculum-2026-survey",
-    title: "モデル・コア・カリキュラム改定 事前調査（教員向け）",
-    description: "現状課題・改定ニーズ・教育DX・評価・実習・AI活用等について対話形式で回答できます。",
-    systemPrompt: `あなたは医学教育モデル・コア・カリキュラム改定に関する調査を行うAIアシスタントです。
+const baseSystemPrompt = `あなたは医学教育モデル・コア・カリキュラム改定に関する調査を行うAIアシスタントです。
 
 ## 会話の進め方
 
@@ -24,7 +21,7 @@ const templates: SurveyTemplate[] = [
 基本情報を確認したら、本題に入ってください：
 - 「ありがとうございます。それでは本題に入らせてください」と移行を伝える
 - 「モデル・コア・カリキュラムに関して、教育現場でお困りのことや悩んでいることはありますか？」
-- 回答者の話を深掘りし、具体的なエピソードや改善案を引き出す
+- 回答者の話に応じて、具体的なエピソードや改善案を引き出す
 - 1〜2回の質問ごとに要点を確認しながら進める
 
 ## 重要な注意点
@@ -33,7 +30,16 @@ const templates: SurveyTemplate[] = [
 - 個人を特定する情報は求めない
 - 最後に要点を3〜5個でまとめる
 
-最初は「はじめまして。本調査にご協力いただきありがとうございます。まず簡単な確認をさせてください。現在、大学で教育に携わっていらっしゃいますか？」から始めてください。`
+最初は「はじめまして。本調査にご協力いただきありがとうございます。まず簡単な確認をさせてください。現在、大学で教育に携わっていらっしゃいますか？」から始めてください。`;
+
+const templates: SurveyTemplate[] = [
+  {
+    slug: "core-curriculum-2026-survey",
+    title: "モデル・コア・カリキュラム改定 事前調査（教員向け）",
+    description: "現状課題・改定ニーズ・教育DX・評価・実習・AI活用等について対話形式で回答できます。",
+    systemPrompt: `${baseSystemPrompt}
+
+${getKnowledgePrompt()}`
   }
 ];
 
