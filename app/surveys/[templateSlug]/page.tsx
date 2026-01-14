@@ -387,7 +387,8 @@ export default function SurveyPage({
         <li>氏名・連絡先など個人を特定する情報は入力しないでください</li>
         <li>途中終了しても構いません</li>
         <li>回答内容は匿名化・集計して利用します</li>
-        <li style={{ fontWeight: 600 }}>制限時間：5分間</li>
+        <li style={{ fontWeight: 600 }}>制限時間：5分間（できるだけ5分間入力してください）</li>
+        <li style={{ fontWeight: 600 }}>「終了してサマライズ」はなるべく押さないでください</li>
       </ul>
       <button
         onClick={() => setConsented(true)}
@@ -492,6 +493,9 @@ export default function SurveyPage({
             <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
               残り {formatTime(remainingTime)}
             </div>
+            <p className="note" style={{ marginTop: 6 }}>
+              ※できるだけ5分間ご入力ください（「終了してサマライズ」はなるべく押さないでください）
+            </p>
           </div>
 
           <p className="note">
