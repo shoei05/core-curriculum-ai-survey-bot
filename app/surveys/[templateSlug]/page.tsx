@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState, FormEvent, use, useEffect, useCallback, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: string;
@@ -40,6 +43,12 @@ const createId = () => {
   }
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
+
+const MarkdownContent = ({ content }: { content: string }) => (
+  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+    {content}
+  </ReactMarkdown>
+);
 
 export default function SurveyPage({
   params
@@ -436,7 +445,9 @@ export default function SurveyPage({
                 className={`message ${m.role === "user" ? "message-user" : "message-ai"}`}
               >
                 <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
-                <div className="message-content">{m.content}</div>
+                <div className="message-content markdown-content">
+                  <MarkdownContent content={m.content} />
+                </div>
               </div>
             ))}
             {isLoading && (
@@ -617,7 +628,9 @@ export default function SurveyPage({
                       className={`message ${m.role === "user" ? "message-user" : "message-ai"}`}
                     >
                       <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
-                      <div className="message-content">{m.content}</div>
+                      <div className="message-content markdown-content">
+                        <MarkdownContent content={m.content} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -693,7 +706,9 @@ export default function SurveyPage({
                     {log.messages.map((m, index) => (
                       <div key={index} style={{ margin: "6px 0" }}>
                         <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
-                        <div className="message-content">{m.content}</div>
+                        <div className="message-content markdown-content">
+                          <MarkdownContent content={m.content} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -781,7 +796,9 @@ export default function SurveyPage({
               {messages.map((m, index) => (
                 <div key={index} className="report-log-item">
                   <div className="report-log-role">{m.role === "user" ? "あなた" : "AI"}</div>
-                  <div className="report-log-content">{m.content}</div>
+                  <div className="report-log-content markdown-content">
+                    <MarkdownContent content={m.content} />
+                  </div>
                 </div>
               ))}
             </div>
