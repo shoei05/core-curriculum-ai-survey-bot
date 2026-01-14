@@ -198,16 +198,17 @@ export default function SurveyPage({
     try {
       const html2pdf = (await import("html2pdf.js")).default;
       const filenameDate = new Date().toISOString().slice(0, 10);
+      const filename = `survey-report-${filenameDate}.pdf`;
       await html2pdf()
         .from(reportRef.current)
         .set({
           margin: [10, 10, 12, 10],
-          filename: `survey-report-${filenameDate}.pdf`,
+          filename,
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         })
-        .save();
+        .save(filename);
     } catch (error) {
       console.error("PDF export error:", error);
     } finally {
