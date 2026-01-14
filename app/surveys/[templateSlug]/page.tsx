@@ -8,7 +8,8 @@ interface Message {
   content: string;
 }
 
-const TIME_LIMIT_SECONDS = 10 * 60; // 10 minutes
+const TIME_LIMIT_SECONDS = 10 * 60;
+const CLOSED_QUESTION_COUNT = 3; // First 3 questions are closed questions with buttons
 
 export default function SurveyPage({
   params
@@ -24,9 +25,20 @@ export default function SurveyPage({
   const [initialized, setInitialized] = useState(false);
   const [remainingTime, setRemainingTime] = useState(TIME_LIMIT_SECONDS);
   const [isExpired, setIsExpired] = useState(false);
+  const [questionCount, setQuestionCount] = useState(0); // Track number of AI questions
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Start timer when consented
+  // Determine if we're in closed question phase
+  const isClosedQuestionPhase = questionCount < CLOSED_QUESTION_COUNT;
+
+  // Suggestion buttons for closed questions
+  const getSuggestions = (): string[] => {
+    if (questionCount === 0) return ["はい、教育に携わっています", "いいえ"];
+    if (questionCount === 1) return ["はい、見たことがあります", "いいえ、見たことがありません"];
+    if (questionCount === 2) return ["はい、担当しています", "いいえ、担当していません"];
+    return [];
+  };
+
   useEffect(() => {
     if (consented && !isExpired) {
       timerRef.current = setInterval(() => {
@@ -51,7 +63,6 @@ export default function SurveyPage({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Fetch initial greeting from AI after consent
   const fetchInitialGreeting = useCallback(async () => {
     if (initialized || messages.length > 0) return;
 
@@ -73,6 +84,7 @@ export default function SurveyPage({
         role: "assistant",
         content: data.text || "本調査にご協力いただきありがとうございます。現在、大学で教育に携わっていらっしゃいますか？"
       }]);
+      setQuestionCount(1);
     } catch (error) {
       console.error("Error:", error);
       setMessages([{
@@ -91,14 +103,13 @@ export default function SurveyPage({
     }
   }, [consented, initialized, fetchInitialGreeting]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading || isExpired) return;
+  const sendMessage = async (content: string) => {
+    if (!content.trim() || isLoading || isExpired) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input.trim()
+      content: content.trim()
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -123,6 +134,7 @@ export default function SurveyPage({
         role: "assistant",
         content: data.text || "（応答を取得できませんでした）"
       }]);
+      setQuestionCount((prev) => prev + 1);
     } catch (error) {
       console.error("Error:", error);
       setMessages((prev) => [...prev, {
@@ -133,6 +145,15 @@ export default function SurveyPage({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    await sendMessage(input);
+  };
+
+  const handleSuggestionClick = async (suggestion: string) => {
+    await sendMessage(suggestion);
   };
 
   const intro = useMemo(() => (
@@ -162,6 +183,8 @@ export default function SurveyPage({
       </main>
     );
   }
+
+  const suggestions = getSuggestions();
 
   return (
     <main>
@@ -201,25 +224,53 @@ export default function SurveyPage({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} style={{ marginTop: 12, display: "flex", gap: 8 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={isExpired ? "制限時間終了" : "ここに入力…"}
-          style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd" }}
-          disabled={isLoading || isExpired}
-        />
-        <button
-          type="submit"
-          disabled={isLoading || input.trim().length === 0 || isExpired}
-          style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ddd", cursor: "pointer" }}
-        >
-          送信
-        </button>
-      </form>
+      {/* Suggestion buttons for closed questions */}
+      {isClosedQuestionPhase && suggestions.length > 0 && !isLoading && !isExpired && (
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => handleSuggestionClick(s)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: 10,
+                border: "1px solid #4a90d9",
+                background: "#e8f4fd",
+                color: "#1a5da6",
+                cursor: "pointer",
+                fontWeight: 500
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Free text input for open questions */}
+      {!isClosedQuestionPhase && (
+        <form onSubmit={handleSubmit} style={{ marginTop: 12, display: "flex", gap: 8 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={isExpired ? "制限時間終了" : "ここに入力…"}
+            style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd" }}
+            disabled={isLoading || isExpired}
+          />
+          <button
+            type="submit"
+            disabled={isLoading || input.trim().length === 0 || isExpired}
+            style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #ddd", cursor: "pointer" }}
+          >
+            送信
+          </button>
+        </form>
+      )}
 
       <p style={{ color: "#666", marginTop: 10, fontSize: 12 }}>
-        ※個人を特定する情報は入力しないでください。
+        {isClosedQuestionPhase
+          ? "※上のボタンを選んで回答してください"
+          : "※個人を特定する情報は入力しないでください。"}
       </p>
     </main>
   );
