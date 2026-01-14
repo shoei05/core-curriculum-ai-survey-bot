@@ -47,6 +47,10 @@ export default function SurveyPage({
 
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.error || "サーバーエラー");
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
