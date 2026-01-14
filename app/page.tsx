@@ -3,6 +3,7 @@ import { getTemplates } from "@/lib/templates";
 
 export default async function Home() {
   const templates = await getTemplates();
+  const primaryTemplate = templates[0];
 
   return (
     <main>
@@ -16,6 +17,14 @@ export default async function Home() {
             教員向けの事前調査をチャット形式で回答できます。
             回答は要約とカテゴリ別キーワードに自動整理されます。
           </p>
+          {primaryTemplate && (
+            <div className="hero-actions">
+              <Link href={`/surveys/${primaryTemplate.slug}`} className="btn btn-primary">
+                このアンケートを開始
+              </Link>
+              <span className="hero-hint">所要時間：約5分</span>
+            </div>
+          )}
         </div>
         <div className="hero-card">
           <div className="template-title">調査の流れ</div>

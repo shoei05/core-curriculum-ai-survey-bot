@@ -83,6 +83,25 @@ main {
   box-shadow: var(--shadow);
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.hero-actions .btn {
+  padding: 12px 20px;
+  font-size: 1rem;
+}
+
+.hero-hint {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -192,6 +211,20 @@ main {
   flex-wrap: wrap;
 }
 
+.summary-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.summary-controls .btn-end-summarize {
+  flex: 1 1 240px;
+  margin-top: 0;
+  width: auto;
+}
+
 .timer {
   padding: 6px 12px;
   border-radius: 999px;
@@ -236,12 +269,26 @@ main {
   background: var(--card);
   box-shadow: var(--shadow);
   padding: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.side-panel.is-front {
+  border-color: var(--accent);
+  box-shadow: 0 30px 70px rgba(197, 72, 123, 0.25);
+  transform: translateY(-4px);
 }
 
 .message-stack {
   display: grid;
   gap: 12px;
   min-height: 240px;
+}
+
+.message-stack.compact {
+  min-height: auto;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .message {
@@ -370,7 +417,6 @@ main {
 
 .btn-end-summarize {
   display: block;
-  width: 100%;
   padding: 14px 20px;
   margin-top: 16px;
   border-radius: 12px;
@@ -393,4 +439,18 @@ main {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.blink {
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }

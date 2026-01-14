@@ -57,8 +57,10 @@ export default function SurveyPage({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryRequested, setSummaryRequested] = useState(false);
   const [logs, setLogs] = useState<SurveyLog[]>([]);
+  const [sidePanelFocus, setSidePanelFocus] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<Message[]>([]);
+  const sidePanelRef = useRef<HTMLDivElement | null>(null);
 
   // Determine if we're in closed question phase
   const isClosedQuestionPhase = questionCount < CLOSED_QUESTION_COUNT;
@@ -171,6 +173,14 @@ export default function SurveyPage({
     }
   }, [consented, initialized, fetchInitialGreeting]);
 
+  const focusSidePanel = useCallback(() => {
+    setSidePanelFocus(true);
+    if (typeof window !== "undefined") {
+      sidePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.setTimeout(() => setSidePanelFocus(false), 2200);
+    }
+  }, []);
+
   // Auto-summarize when time expires
   useEffect(() => {
     if (isExpired && !isEnded && !summaryRequested && messagesRef.current.length > 0) {
@@ -187,12 +197,15 @@ export default function SurveyPage({
     setSummaryError(null);
 
     try {
+      const finishedAt = new Date().toISOString();
       const response = await fetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: messagesRef.current.map((m) => ({ role: m.role, content: m.content })),
-          templateSlug
+          templateSlug,
+          startedAt: startedAt ?? undefined,
+          endedAt: finishedAt
         })
       });
 
@@ -205,14 +218,13 @@ export default function SurveyPage({
       setSummaryBullets(summary);
       setKeywordGroups(groups);
 
-      const endedAt = new Date().toISOString();
-      const sessionStartedAt = startedAt ?? endedAt;
+      const sessionStartedAt = startedAt ?? finishedAt;
 
       const logEntry: SurveyLog = {
         id: createId(),
         templateSlug,
         startedAt: sessionStartedAt,
-        endedAt,
+        endedAt: finishedAt,
         messages: messagesRef.current,
         summaryBullets: summary,
         keywordGroups: groups
@@ -228,16 +240,24 @@ export default function SurveyPage({
     }
   }, [isSummarizing, summaryRequested, templateSlug, persistLogs, startedAt]);
 
+  useEffect(() => {
+    if (!isSummarizing && summaryRequested && summaryBullets.length > 0) {
+      focusSidePanel();
+    }
+  }, [isSummarizing, summaryRequested, summaryBullets.length, focusSidePanel]);
+
   // Trigger summarize when isEnded becomes true (for auto-summarize on expire)
   useEffect(() => {
     if (isEnded && !summaryRequested && messagesRef.current.length > 0) {
+      focusSidePanel();
       summarizeConversation();
     }
-  }, [isEnded, summaryRequested, summarizeConversation]);
+  }, [isEnded, summaryRequested, summarizeConversation, focusSidePanel]);
 
   const handleEnd = async () => {
     if (isEnded || isSummarizing) return;
     setIsEnded(true);
+    focusSidePanel();
     await summarizeConversation();
   };
 
@@ -332,9 +352,6 @@ export default function SurveyPage({
 
       <header className="survey-header">
         <h2>アンケート</h2>
-        <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
-          残り {formatTime(remainingTime)}
-        </div>
       </header>
 
       {isExpired && (
@@ -396,16 +413,20 @@ export default function SurveyPage({
             </form>
           )}
 
-          {/* 終了してサマライズボタン - チャット下に大きく配置 */}
-          {!isEnded && messages.length > 0 && !isClosedQuestionPhase && (
-            <button
-              onClick={handleEnd}
-              disabled={isSummarizing || isLoading}
-              className="btn-end-summarize"
-            >
-              {isSummarizing ? "サマライズ中..." : "✓ 終了してサマライズ"}
-            </button>
-          )}
+          <div className="summary-controls">
+            {!isEnded && messages.length > 0 && !isClosedQuestionPhase && (
+              <button
+                onClick={handleEnd}
+                disabled={isSummarizing || isLoading}
+                className="btn-end-summarize"
+              >
+                {isSummarizing ? <span className="blink">サマライズ中...</span> : "✓ 終了してサマライズ"}
+              </button>
+            )}
+            <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
+              残り {formatTime(remainingTime)}
+            </div>
+          </div>
 
           <p className="note">
             {isEnded
@@ -416,10 +437,10 @@ export default function SurveyPage({
           </p>
         </section>
 
-        <aside className="side-panel">
+        <aside ref={sidePanelRef} className={`side-panel ${sidePanelFocus ? "is-front" : ""}`}>
           <div className="summary-card">
             <h3 className="panel-title">サマリー</h3>
-            {isSummarizing && <p className="note">サマライズ中...</p>}
+            {isSummarizing && <p className="note blink">サマライズ中...</p>}
             {summaryError && (
               <div style={{ color: "#b00020", marginBottom: 8 }}>
                 {summaryError}
@@ -456,6 +477,25 @@ export default function SurveyPage({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="summary-card" style={{ marginTop: 12 }}>
+            <h3 className="panel-title">チャット履歴</h3>
+            {messages.length === 0 ? (
+              <p className="note">まだ会話がありません。</p>
+            ) : (
+              <div className="message-stack compact">
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`message ${m.role === "user" ? "message-user" : "message-ai"}`}
+                  >
+                    <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
+                    <div className="message-content">{m.content}</div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

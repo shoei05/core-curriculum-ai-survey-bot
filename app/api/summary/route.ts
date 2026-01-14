@@ -1,12 +1,15 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const BodySchema = z.object({
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string()
   })),
-  templateSlug: z.string().optional()
+  templateSlug: z.string().optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional()
 });
 
 const SummarySchema = z.object({
@@ -14,6 +17,14 @@ const SummarySchema = z.object({
   keywordGroups: z.array(z.object({
     category: z.string(),
     keywords: z.array(z.string()).min(1)
+  })).min(1),
+  issueCategories: z.array(z.object({
+    category: z.string(),
+    items: z.array(z.string()).min(1)
+  })).min(1),
+  competencyCategories: z.array(z.object({
+    category: z.string(),
+    items: z.array(z.string()).min(1)
   })).min(1)
 });
 
@@ -88,12 +99,22 @@ export async function POST(req: Request) {
             `  "summaryBullets": ["要点1", "要点2", "要点3"],\n` +
             `  "keywordGroups": [\n` +
             `    { "category": "カテゴリ名", "keywords": ["キーワード1", "キーワード2"] }\n` +
+            `  ],\n` +
+            `  "issueCategories": [\n` +
+            `    { "category": "教育上の困り事カテゴリ", "items": ["項目1", "項目2"] }\n` +
+            `  ],\n` +
+            `  "competencyCategories": [\n` +
+            `    { "category": "重要な資質・能力カテゴリ", "items": ["項目1", "項目2"] }\n` +
             `  ]\n` +
             `}\n\n` +
             `# 制約\n` +
             `- summaryBulletsは3〜5個\n` +
             `- keywordGroupsは3〜6カテゴリ\n` +
             `- keywordsは各カテゴリ2〜6個、短い名詞中心\n\n` +
+            `- issueCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
+            `- competencyCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
+            `- issueCategoriesは「普段の教育の困り事」に対応する内容に限定\n` +
+            `- competencyCategoriesは「重要な資質・能力」に対応する内容に限定\n\n` +
             `# 会話履歴\n` +
             `${transcript}`
         }
@@ -113,8 +134,37 @@ export async function POST(req: Request) {
 
     const payload = {
       summaryBullets: summary.data.summaryBullets,
-      keywordGroups: summary.data.keywordGroups
+      keywordGroups: summary.data.keywordGroups,
+      issueCategories: summary.data.issueCategories,
+      competencyCategories: summary.data.competencyCategories
     };
+
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
+      const insertPayload = {
+        template_slug: body.templateSlug ?? "core-curriculum-2026-survey",
+        started_at: body.startedAt ?? null,
+        ended_at: body.endedAt ?? new Date().toISOString(),
+        messages: body.messages,
+        summary_bullets: payload.summaryBullets,
+        keyword_groups: payload.keywordGroups,
+        issue_categories: payload.issueCategories,
+        competency_categories: payload.competencyCategories
+      };
+
+      const { error: insertError } = await (supabase as unknown as {
+        from: (table: string) => {
+          insert: (values: Record<string, unknown>[]) => Promise<{ error: unknown | null }>;
+        };
+      })
+        .from(tableName)
+        .insert([insertPayload]);
+
+      if (insertError) {
+        console.error("Supabase insert error:", insertError);
+      }
+    }
 
     console.info(JSON.stringify({
       type: "survey_summary",
@@ -122,6 +172,8 @@ export async function POST(req: Request) {
       templateSlug: body.templateSlug ?? "core-curriculum-2026-survey",
       summaryBullets: payload.summaryBullets,
       keywordGroups: payload.keywordGroups,
+      issueCategories: payload.issueCategories,
+      competencyCategories: payload.competencyCategories,
       messages: body.messages
     }));
 
