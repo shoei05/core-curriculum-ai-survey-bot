@@ -19,7 +19,7 @@
 body {
   margin: 0;
   color: var(--ink);
-  font-family: var(--font-ud), "BIZ UDGothic", "UD デジタル 教科書体 NP-R", "Hiragino Kaku Gothic ProN", sans-serif;
+  font-family: var(--font-ud), "BIZ UDGothic", "BIZ UDMincho", "UD デジタル 教科書体 NP-R", sans-serif;
   background:
     radial-gradient(1200px 800px at 12% -10%, #f8e5ef 0%, transparent 60%),
     radial-gradient(900px 700px at 100% 0%, #f5dee9 0%, transparent 55%),
@@ -30,7 +30,6 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Times New Roman", serif;
   letter-spacing: 0.02em;
 }
 
