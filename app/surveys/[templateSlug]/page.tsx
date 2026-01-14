@@ -67,9 +67,11 @@ export default function SurveyPage({
   const [summaryRequested, setSummaryRequested] = useState(false);
   const [logs, setLogs] = useState<SurveyLog[]>([]);
   const [sidePanelFocus, setSidePanelFocus] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<Message[]>([]);
   const sidePanelRef = useRef<HTMLDivElement | null>(null);
+  const reportRef = useRef<HTMLDivElement | null>(null);
 
   // Determine if we're in closed question phase
   const isClosedQuestionPhase = questionCount < CLOSED_QUESTION_COUNT;
@@ -189,6 +191,29 @@ export default function SurveyPage({
       window.setTimeout(() => setSidePanelFocus(false), 2200);
     }
   }, []);
+
+  const handleDownloadReport = useCallback(async () => {
+    if (!reportRef.current || summaryBullets.length === 0 || isGeneratingPdf) return;
+    setIsGeneratingPdf(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const filenameDate = new Date().toISOString().slice(0, 10);
+      await html2pdf()
+        .from(reportRef.current)
+        .set({
+          margin: [10, 10, 12, 10],
+          filename: `survey-report-${filenameDate}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        })
+        .save();
+    } catch (error) {
+      console.error("PDF export error:", error);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [summaryBullets.length, isGeneratingPdf]);
 
   // Auto-summarize when time expires
   useEffect(() => {
@@ -360,6 +385,8 @@ export default function SurveyPage({
 
   const suggestions = getSuggestions();
   const isInputDisabled = isLoading || isExpired || isEnded;
+  const shouldShowChatTransfer = summaryRequested || isEnded;
+  const reportGeneratedAt = new Date().toLocaleString("ja-JP");
 
   return (
     <main>
@@ -528,24 +555,42 @@ export default function SurveyPage({
             )}
           </div>
 
-          <div className="summary-card" style={{ marginTop: 12 }}>
-            <h3 className="panel-title">チャット履歴</h3>
-            {messages.length === 0 ? (
-              <p className="note">まだ会話がありません。</p>
-            ) : (
-              <div className="message-stack compact">
-                {messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`message ${m.role === "user" ? "message-user" : "message-ai"}`}
-                  >
-                    <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
-                    <div className="message-content">{m.content}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {summaryBullets.length > 0 && (
+            <div className="report-card">
+              <div className="report-title">ご協力ありがとうございました</div>
+              <p className="report-text">
+                レポートをPDFでダウンロードできます。要点・カテゴリ・会話ログをまとめています。
+              </p>
+              <button
+                onClick={handleDownloadReport}
+                disabled={isGeneratingPdf}
+                className="btn btn-primary"
+              >
+                {isGeneratingPdf ? "PDF生成中..." : "レポートPDFをダウンロード"}
+              </button>
+            </div>
+          )}
+
+          {shouldShowChatTransfer && (
+            <div className="summary-card" style={{ marginTop: 12 }}>
+              <h3 className="panel-title">チャット履歴</h3>
+              {messages.length === 0 ? (
+                <p className="note">まだ会話がありません。</p>
+              ) : (
+                <div className="message-stack compact">
+                  {messages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`message ${m.role === "user" ? "message-user" : "message-ai"}`}
+                    >
+                      <div className="message-role">{m.role === "user" ? "あなた" : "AI"}</div>
+                      <div className="message-content">{m.content}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="log-list">
             <h3 className="panel-title">履歴</h3>
@@ -625,6 +670,85 @@ export default function SurveyPage({
             )}
           </div>
         </aside>
+      </div>
+
+      <div ref={reportRef} className="report-export">
+        <div className="report-header">
+          <div className="report-title">医学教育モデル・コア・カリキュラム 改定 事前調査レポート</div>
+          <div className="report-meta">
+            <span>作成日: {reportGeneratedAt}</span>
+            <span>テンプレート: {templateSlug}</span>
+          </div>
+        </div>
+
+        <section className="report-section">
+          <h4>サマリー</h4>
+          {summaryBullets.length > 0 ? (
+            <ul>
+              {summaryBullets.map((bullet, index) => (
+                <li key={index}>{bullet}</li>
+              ))}
+            </ul>
+          ) : (
+            <p>サマリーはまだありません。</p>
+          )}
+        </section>
+
+        {issueCategories.length > 0 && (
+          <section className="report-section">
+            <h4>困り事カテゴリ</h4>
+            <div className="report-grid">
+              {issueCategories.map((group, index) => (
+                <div key={index} className="report-chip">
+                  <div className="report-chip-title">{group.category}</div>
+                  <div>{group.items.join(" / ")}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {competencyCategories.length > 0 && (
+          <section className="report-section">
+            <h4>資質・能力カテゴリ</h4>
+            <div className="report-grid">
+              {competencyCategories.map((group, index) => (
+                <div key={index} className="report-chip">
+                  <div className="report-chip-title">{group.category}</div>
+                  <div>{group.items.join(" / ")}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {keywordGroups.length > 0 && (
+          <section className="report-section">
+            <h4>カテゴリ別キーワード</h4>
+            <div className="report-grid">
+              {keywordGroups.map((group, index) => (
+                <div key={index} className="report-chip">
+                  <div className="report-chip-title">{group.category}</div>
+                  <div>{group.keywords.join(" / ")}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {messages.length > 0 && (
+          <section className="report-section">
+            <h4>会話ログ</h4>
+            <div className="report-log">
+              {messages.map((m, index) => (
+                <div key={index} className="report-log-item">
+                  <div className="report-log-role">{m.role === "user" ? "あなた" : "AI"}</div>
+                  <div className="report-log-content">{m.content}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main >
   );
