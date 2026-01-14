@@ -74,6 +74,7 @@ export default function SurveyPage({
   const [competencyCategories, setCompetencyCategories] = useState<CategoryGroup[]>([]);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryRequested, setSummaryRequested] = useState(false);
+  const [summaryAttempted, setSummaryAttempted] = useState(false);
   const [logs, setLogs] = useState<SurveyLog[]>([]);
   const [sidePanelFocus, setSidePanelFocus] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -206,12 +207,35 @@ export default function SurveyPage({
     if (!reportRef.current || summaryBullets.length === 0 || isGeneratingPdf) return;
     setIsGeneratingPdf(true);
     setPdfError(null);
+    let prevInlineStyles: {
+      left: string;
+      top: string;
+      position: string;
+      visibility: string;
+      zIndex: string;
+    } | null = null;
+    let reportNode: HTMLDivElement | null = null;
     try {
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const reportNode = reportRef.current;
+      reportNode = reportRef.current;
       if (!reportNode) {
         throw new Error("Report element unavailable");
       }
+
+      prevInlineStyles = {
+        left: reportNode.style.left,
+        top: reportNode.style.top,
+        position: reportNode.style.position,
+        visibility: reportNode.style.visibility,
+        zIndex: reportNode.style.zIndex
+      };
+
+      reportNode.style.left = "0";
+      reportNode.style.top = "0";
+      reportNode.style.position = "fixed";
+      reportNode.style.visibility = "visible";
+      reportNode.style.zIndex = "1000";
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       const bounds = reportNode.getBoundingClientRect();
       if (bounds.width < 10 || bounds.height < 10) {
@@ -244,6 +268,13 @@ export default function SurveyPage({
       console.error("PDF export error:", error);
       setPdfError("PDFの生成に失敗しました。別ブラウザで再試行してください。");
     } finally {
+      if (reportNode && prevInlineStyles) {
+        reportNode.style.left = prevInlineStyles.left;
+        reportNode.style.top = prevInlineStyles.top;
+        reportNode.style.position = prevInlineStyles.position;
+        reportNode.style.visibility = prevInlineStyles.visibility;
+        reportNode.style.zIndex = prevInlineStyles.zIndex;
+      }
       setIsGeneratingPdf(false);
     }
   }, [summaryBullets.length, isGeneratingPdf]);
@@ -261,6 +292,7 @@ export default function SurveyPage({
 
     setIsSummarizing(true);
     setSummaryRequested(true);
+    setSummaryAttempted(true);
     setSummaryError(null);
 
     try {
@@ -321,11 +353,11 @@ export default function SurveyPage({
 
   // Trigger summarize when isEnded becomes true (for auto-summarize on expire)
   useEffect(() => {
-    if (isEnded && !summaryRequested && messagesRef.current.length > 0) {
+    if (isEnded && !summaryRequested && !summaryAttempted && messagesRef.current.length > 0) {
       focusSidePanel();
       summarizeConversation();
     }
-  }, [isEnded, summaryRequested, summarizeConversation, focusSidePanel]);
+  }, [isEnded, summaryRequested, summaryAttempted, summarizeConversation, focusSidePanel]);
 
   const handleEnd = async () => {
     if (isEnded || isSummarizing) return;
