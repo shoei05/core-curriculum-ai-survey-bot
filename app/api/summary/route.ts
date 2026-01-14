@@ -74,6 +74,15 @@ export async function POST(req: Request) {
       });
     }
 
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.error("Supabase admin client unavailable: missing env vars.");
+      return new Response(JSON.stringify({ error: "Supabase is not configured (missing env vars)" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      });
+    }
+
     const client = new OpenAI({
       apiKey: process.env.OPENROUTER_API_KEY,
       baseURL: "https://openrouter.ai/api/v1"
@@ -139,54 +148,49 @@ export async function POST(req: Request) {
       competencyCategories: summary.data.competencyCategories
     };
 
-    const supabase = getSupabaseAdmin();
-    if (supabase) {
-      const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
-      const insertPayload = {
-        template_slug: body.templateSlug ?? "core-curriculum-2026-survey",
-        started_at: body.startedAt ?? null,
-        ended_at: body.endedAt ?? new Date().toISOString(),
-        messages: body.messages,
-        summary_bullets: payload.summaryBullets,
-        keyword_groups: payload.keywordGroups,
-        issue_categories: payload.issueCategories,
-        competency_categories: payload.competencyCategories
+    const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
+    const insertPayload = {
+      template_slug: body.templateSlug ?? "core-curriculum-2026-survey",
+      started_at: body.startedAt ?? null,
+      ended_at: body.endedAt ?? new Date().toISOString(),
+      messages: body.messages,
+      summary_bullets: payload.summaryBullets,
+      keyword_groups: payload.keywordGroups,
+      issue_categories: payload.issueCategories,
+      competency_categories: payload.competencyCategories
+    };
+
+    const supabaseTable = (supabase as unknown as {
+      from: (table: string) => {
+        insert: (values: Record<string, unknown>[]) => Promise<{ error: any | null }>;
       };
+    }).from(tableName);
 
-      const supabaseTable = (supabase as unknown as {
-        from: (table: string) => {
-          insert: (values: Record<string, unknown>[]) => Promise<{ error: any | null }>;
+    const { error: insertError } = await supabaseTable.insert([insertPayload]);
+
+    if (insertError) {
+      console.error("Supabase insert error:", insertError);
+
+      const errorMessage = String(insertError?.message ?? "");
+      const isMissingColumn =
+        errorMessage.includes("column") &&
+        (errorMessage.includes("issue_categories") || errorMessage.includes("competency_categories"));
+
+      if (isMissingColumn) {
+        const fallbackPayload = {
+          template_slug: insertPayload.template_slug,
+          started_at: insertPayload.started_at,
+          ended_at: insertPayload.ended_at,
+          messages: insertPayload.messages,
+          summary_bullets: insertPayload.summary_bullets,
+          keyword_groups: insertPayload.keyword_groups
         };
-      }).from(tableName);
 
-      const { error: insertError } = await supabaseTable.insert([insertPayload]);
-
-      if (insertError) {
-        console.error("Supabase insert error:", insertError);
-
-        const errorMessage = String(insertError?.message ?? "");
-        const isMissingColumn =
-          errorMessage.includes("column") &&
-          (errorMessage.includes("issue_categories") || errorMessage.includes("competency_categories"));
-
-        if (isMissingColumn) {
-          const fallbackPayload = {
-            template_slug: insertPayload.template_slug,
-            started_at: insertPayload.started_at,
-            ended_at: insertPayload.ended_at,
-            messages: insertPayload.messages,
-            summary_bullets: insertPayload.summary_bullets,
-            keyword_groups: insertPayload.keyword_groups
-          };
-
-          const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
-          if (retryError) {
-            console.error("Supabase insert retry error:", retryError);
-          }
+        const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
+        if (retryError) {
+          console.error("Supabase insert retry error:", retryError);
         }
       }
-    } else {
-      console.error("Supabase admin client unavailable: missing env vars.");
     }
 
     console.info(JSON.stringify({
