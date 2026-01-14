@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, FormEvent } from "react";
+import { useMemo, useState, FormEvent, use } from "react";
 
 interface Message {
   id: string;
@@ -8,8 +8,14 @@ interface Message {
   content: string;
 }
 
-export default function SurveyPage({ params }: { params: { templateSlug: string } }) {
-  const templateSlug = params.templateSlug;
+export default function SurveyPage({
+  params
+}: {
+  params: Promise<{ templateSlug: string }>
+}) {
+  // Next.js 15: params is a Promise, use React's use() hook
+  const { templateSlug } = use(params);
+
   const [consented, setConsented] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
