@@ -332,17 +332,8 @@ export default function SurveyPage({
 
       <header className="survey-header">
         <h2>アンケート</h2>
-        <div className="survey-header-actions">
-          <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
-            残り {formatTime(remainingTime)}
-          </div>
-          <button
-            onClick={handleEnd}
-            disabled={messages.length === 0 || isSummarizing || isEnded || isLoading}
-            className="btn btn-ghost"
-          >
-            {isSummarizing ? "サマライズ中" : isEnded ? "サマライズ済み" : "終了してサマライズ"}
-          </button>
+        <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
+          残り {formatTime(remainingTime)}
         </div>
       </header>
 
@@ -403,6 +394,17 @@ export default function SurveyPage({
                 送信
               </button>
             </form>
+          )}
+
+          {/* 終了してサマライズボタン - チャット下に大きく配置 */}
+          {!isEnded && messages.length > 0 && !isClosedQuestionPhase && (
+            <button
+              onClick={handleEnd}
+              disabled={isSummarizing || isLoading}
+              className="btn-end-summarize"
+            >
+              {isSummarizing ? "サマライズ中..." : "✓ 終了してサマライズ"}
+            </button>
           )}
 
           <p className="note">
@@ -508,6 +510,6 @@ export default function SurveyPage({
           </div>
         </aside>
       </div>
-    </main>
+    </main >
   );
 }

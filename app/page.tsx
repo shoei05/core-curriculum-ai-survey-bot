@@ -8,12 +8,12 @@ export default async function Home() {
     <main>
       <section className="home-hero">
         <div>
-          <span className="pill">深掘りインタビュー支援</span>
+          <span className="pill">事前調査</span>
           <h1 className="hero-title">
             {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
           </h1>
           <p className="hero-subtitle">
-            教員向け周辺調査を、落ち着いた対話で整理しながら回答できるボットです。
+            教員向けの事前調査をチャット形式で回答できます。
             回答は要約とカテゴリ別キーワードに自動整理されます。
           </p>
         </div>
@@ -21,7 +21,7 @@ export default async function Home() {
           <div className="template-title">調査の流れ</div>
           <ul className="consent-list" style={{ marginTop: 12 }}>
             <li>同意確認後にAIが最初の質問を提示</li>
-            <li>自由回答を深掘りしながら進行</li>
+            <li>回答に応じてAIが質問を進行</li>
             <li>終了時に要約とキーワードを生成</li>
           </ul>
         </div>

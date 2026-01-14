@@ -368,3 +368,30 @@ main {
   font-weight: 700;
   margin-bottom: 4px;
 }
+
+.btn-end-summarize {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  margin-top: 16px;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-end-summarize:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(197, 72, 123, 0.25);
+}
+
+.btn-end-summarize:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}

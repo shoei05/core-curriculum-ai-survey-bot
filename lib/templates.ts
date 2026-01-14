@@ -9,7 +9,7 @@ const templates: SurveyTemplate[] = [
   {
     slug: "core-curriculum-2026-survey",
     title: "モデル・コア・カリキュラム改定 事前調査（教員向け）",
-    description: "現状課題・改定ニーズ・教育DX・評価・実習・AI活用等を対話で深掘りします。",
+    description: "現状課題・改定ニーズ・教育DX・評価・実習・AI活用等について対話形式で回答できます。",
     systemPrompt: `あなたは医学教育モデル・コア・カリキュラム改定に関する調査を行うAIアシスタントです。
 
 ## 会話の進め方
