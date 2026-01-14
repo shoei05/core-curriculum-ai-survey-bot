@@ -13,6 +13,11 @@ interface KeywordGroup {
   keywords: string[];
 }
 
+interface CategoryGroup {
+  category: string;
+  items: string[];
+}
+
 interface SurveyLog {
   id: string;
   templateSlug: string;
@@ -21,6 +26,8 @@ interface SurveyLog {
   messages: Message[];
   summaryBullets: string[];
   keywordGroups: KeywordGroup[];
+  issueCategories?: CategoryGroup[];
+  competencyCategories?: CategoryGroup[];
 }
 
 const TIME_LIMIT_SECONDS = 5 * 60;
@@ -54,6 +61,8 @@ export default function SurveyPage({
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryBullets, setSummaryBullets] = useState<string[]>([]);
   const [keywordGroups, setKeywordGroups] = useState<KeywordGroup[]>([]);
+  const [issueCategories, setIssueCategories] = useState<CategoryGroup[]>([]);
+  const [competencyCategories, setCompetencyCategories] = useState<CategoryGroup[]>([]);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryRequested, setSummaryRequested] = useState(false);
   const [logs, setLogs] = useState<SurveyLog[]>([]);
@@ -214,9 +223,13 @@ export default function SurveyPage({
 
       const summary = Array.isArray(data.summaryBullets) ? data.summaryBullets : [];
       const groups = Array.isArray(data.keywordGroups) ? data.keywordGroups : [];
+      const issues = Array.isArray(data.issueCategories) ? data.issueCategories : [];
+      const competencies = Array.isArray(data.competencyCategories) ? data.competencyCategories : [];
 
       setSummaryBullets(summary);
       setKeywordGroups(groups);
+      setIssueCategories(issues);
+      setCompetencyCategories(competencies);
 
       const sessionStartedAt = startedAt ?? finishedAt;
 
@@ -227,7 +240,9 @@ export default function SurveyPage({
         endedAt: finishedAt,
         messages: messagesRef.current,
         summaryBullets: summary,
-        keywordGroups: groups
+        keywordGroups: groups,
+        issueCategories: issues,
+        competencyCategories: competencies
       };
 
       persistLogs((prev) => [logEntry, ...prev].slice(0, 50));
@@ -479,6 +494,38 @@ export default function SurveyPage({
                 </div>
               </div>
             )}
+
+            {issueCategories.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div className="log-section-title">困り事カテゴリ</div>
+                <div className="keyword-grid">
+                  {issueCategories.map((group, index) => (
+                    <div key={index} className="keyword-item">
+                      <div className="keyword-title">{group.category}</div>
+                      <div style={{ color: "#555", marginTop: 4 }}>
+                        {group.items.join(" / ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {competencyCategories.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div className="log-section-title">資質・能力カテゴリ</div>
+                <div className="keyword-grid">
+                  {competencyCategories.map((group, index) => (
+                    <div key={index} className="keyword-item">
+                      <div className="keyword-title">{group.category}</div>
+                      <div style={{ color: "#555", marginTop: 4 }}>
+                        {group.items.join(" / ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="summary-card" style={{ marginTop: 12 }}>
@@ -505,8 +552,12 @@ export default function SurveyPage({
             {logs.length === 0 ? (
               <p className="note">履歴はまだありません。</p>
             ) : (
-              logs.map((log) => (
-                <details key={log.id} className="log-item">
+              logs.map((log) => {
+                const issueCats = log.issueCategories ?? [];
+                const competencyCats = log.competencyCategories ?? [];
+
+                return (
+                  <details key={log.id} className="log-item">
                   <summary>
                     {formatLogDate(log.endedAt)} / {log.messages.length}件
                   </summary>
@@ -535,6 +586,30 @@ export default function SurveyPage({
                     </div>
                   )}
 
+                  {issueCats.length > 0 && (
+                    <div className="log-section">
+                      <div className="log-section-title">困り事カテゴリ</div>
+                      {issueCats.map((group, index) => (
+                        <div key={index} style={{ marginBottom: 6 }}>
+                          <div className="keyword-title">{group.category}</div>
+                          <div style={{ color: "#555" }}>{group.items.join(" / ")}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {competencyCats.length > 0 && (
+                    <div className="log-section">
+                      <div className="log-section-title">資質・能力カテゴリ</div>
+                      {competencyCats.map((group, index) => (
+                        <div key={index} style={{ marginBottom: 6 }}>
+                          <div className="keyword-title">{group.category}</div>
+                          <div style={{ color: "#555" }}>{group.items.join(" / ")}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="log-section">
                     <div className="log-section-title">会話ログ</div>
                     {log.messages.map((m, index) => (
@@ -545,7 +620,8 @@ export default function SurveyPage({
                     ))}
                   </div>
                 </details>
-              ))
+                );
+              })
             )}
           </div>
         </aside>
