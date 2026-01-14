@@ -68,6 +68,7 @@ export default function SurveyPage({
   const [logs, setLogs] = useState<SurveyLog[]>([]);
   const [sidePanelFocus, setSidePanelFocus] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<Message[]>([]);
   const sidePanelRef = useRef<HTMLDivElement | null>(null);
@@ -195,22 +196,44 @@ export default function SurveyPage({
   const handleDownloadReport = useCallback(async () => {
     if (!reportRef.current || summaryBullets.length === 0 || isGeneratingPdf) return;
     setIsGeneratingPdf(true);
+    setPdfError(null);
     try {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const reportNode = reportRef.current;
+      if (!reportNode) {
+        throw new Error("Report element unavailable");
+      }
+
+      const bounds = reportNode.getBoundingClientRect();
+      if (bounds.width < 10 || bounds.height < 10) {
+        throw new Error("Report element is empty");
+      }
+
       const html2pdf = (await import("html2pdf.js")).default;
       const filenameDate = new Date().toISOString().slice(0, 10);
       const filename = `survey-report-${filenameDate}.pdf`;
+      const windowWidth = Math.max(1, Math.ceil(reportNode.scrollWidth));
+      const windowHeight = Math.max(1, Math.ceil(reportNode.scrollHeight));
       await html2pdf()
-        .from(reportRef.current)
+        .from(reportNode)
         .set({
           margin: [10, 10, 12, 10],
           filename,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            windowWidth,
+            windowHeight,
+            scrollX: 0,
+            scrollY: 0
+          },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         })
-        .save(filename);
+        .save();
     } catch (error) {
       console.error("PDF export error:", error);
+      setPdfError("PDFの生成に失敗しました。別ブラウザで再試行してください。");
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -569,6 +592,11 @@ export default function SurveyPage({
               >
                 {isGeneratingPdf ? "PDF生成中..." : "レポートPDFをダウンロード"}
               </button>
+              {pdfError && (
+                <p className="note" style={{ color: "#b00020", marginTop: 8 }}>
+                  {pdfError}
+                </p>
+              )}
             </div>
           )}
 
@@ -673,7 +701,12 @@ export default function SurveyPage({
         </aside>
       </div>
 
-      <div ref={reportRef} className="report-export">
+      {isGeneratingPdf && (
+        <div className="pdf-overlay" role="status" aria-live="polite">
+          PDFを生成しています…
+        </div>
+      )}
+      <div ref={reportRef} className={`report-export ${isGeneratingPdf ? "is-exporting" : ""}`}>
         <div className="report-header">
           <div className="report-title">医学教育モデル・コア・カリキュラム 改定 事前調査レポート</div>
           <div className="report-meta">
