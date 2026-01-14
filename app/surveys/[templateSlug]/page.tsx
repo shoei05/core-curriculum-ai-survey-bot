@@ -1,16 +1,65 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useChat } from "ai/react";
+import { useMemo, useState, FormEvent } from "react";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function SurveyPage({ params }: { params: { templateSlug: string } }) {
   const templateSlug = params.templateSlug;
   const [consented, setConsented] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/chat",
-    body: { templateSlug }
-  });
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim()
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map((m) => ({ role: m.role, content: m.content })),
+          templateSlug
+        })
+      });
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.text || "（応答を取得できませんでした）"
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "エラーが発生しました。もう一度お試しください。"
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const intro = useMemo(() => {
     return (
@@ -62,12 +111,19 @@ export default function SurveyPage({ params }: { params: { templateSlug: string 
             <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
           </div>
         ))}
+
+        {isLoading && (
+          <div style={{ margin: "10px 0", color: "#999" }}>
+            <div style={{ fontSize: 12, color: "#777" }}>AI</div>
+            <div>考え中...</div>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} style={{ marginTop: 12, display: "flex", gap: 8 }}>
         <input
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="ここに入力…"
           style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd" }}
           disabled={isLoading}
