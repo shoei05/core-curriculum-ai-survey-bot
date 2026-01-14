@@ -153,17 +153,40 @@ export async function POST(req: Request) {
         competency_categories: payload.competencyCategories
       };
 
-      const { error: insertError } = await (supabase as unknown as {
+      const supabaseTable = (supabase as unknown as {
         from: (table: string) => {
-          insert: (values: Record<string, unknown>[]) => Promise<{ error: unknown | null }>;
+          insert: (values: Record<string, unknown>[]) => Promise<{ error: any | null }>;
         };
-      })
-        .from(tableName)
-        .insert([insertPayload]);
+      }).from(tableName);
+
+      const { error: insertError } = await supabaseTable.insert([insertPayload]);
 
       if (insertError) {
         console.error("Supabase insert error:", insertError);
+
+        const errorMessage = String(insertError?.message ?? "");
+        const isMissingColumn =
+          errorMessage.includes("column") &&
+          (errorMessage.includes("issue_categories") || errorMessage.includes("competency_categories"));
+
+        if (isMissingColumn) {
+          const fallbackPayload = {
+            template_slug: insertPayload.template_slug,
+            started_at: insertPayload.started_at,
+            ended_at: insertPayload.ended_at,
+            messages: insertPayload.messages,
+            summary_bullets: insertPayload.summary_bullets,
+            keyword_groups: insertPayload.keyword_groups
+          };
+
+          const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
+          if (retryError) {
+            console.error("Supabase insert retry error:", retryError);
+          }
+        }
       }
+    } else {
+      console.error("Supabase admin client unavailable: missing env vars.");
     }
 
     console.info(JSON.stringify({
