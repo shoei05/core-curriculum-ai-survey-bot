@@ -19,7 +19,7 @@
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  font-family: var(--font-ud), "BIZ UDGothic", "UD デジタル 教科書体 NP-R", "Hiragino Kaku Gothic ProN", sans-serif;
   background:
     radial-gradient(1200px 800px at 12% -10%, #f8e5ef 0%, transparent 60%),
     radial-gradient(900px 700px at 100% 0%, #f5dee9 0%, transparent 55%),

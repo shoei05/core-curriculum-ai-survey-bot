@@ -63,11 +63,11 @@ export default function SurveyPage({
   // Determine if we're in closed question phase
   const isClosedQuestionPhase = questionCount < CLOSED_QUESTION_COUNT;
 
-  // Suggestion buttons for closed questions
+  // Suggestion buttons for closed questions (simple yes/no)
   const getSuggestions = (): string[] => {
-    if (questionCount === 0) return ["はい、教育に携わっています", "いいえ"];
-    if (questionCount === 1) return ["はい、見たことがあります", "いいえ、見たことがありません"];
-    if (questionCount === 2) return ["はい、担当しています", "いいえ、担当していません"];
+    if (isClosedQuestionPhase) {
+      return ["はい", "いいえ"];
+    }
     return [];
   };
 
