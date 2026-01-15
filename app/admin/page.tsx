@@ -29,7 +29,7 @@ export default function AdminDashboard() {
     if (loading) return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
     if (!stats) return <div className="alert">データの取得に失敗しました。</div>;
 
-    const renderBarChart = (title: string, data: Record<string, number>, color: string) => {
+    const renderBarChart = (title: string, data: Record<string, number>, color: string, type: "issue" | "competency") => {
         const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
         const max = Math.max(...entries.map(e => e[1]), 1);
 
@@ -39,7 +39,16 @@ export default function AdminDashboard() {
                 <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
                     {entries.length === 0 && <p className="note">データがありません</p>}
                     {entries.map(([label, value]) => (
-                        <div key={label}>
+                        <div
+                            key={label}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => {
+                                const url = new URL(window.location.origin + "/admin/logs");
+                                url.searchParams.set(type, label);
+                                window.location.href = url.toString();
+                            }}
+                            title={`${label} でフィルタリング`}
+                        >
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: "0.9rem" }}>
                                 <span>{label}</span>
                                 <span style={{ fontWeight: 700 }}>{value}</span>
@@ -77,8 +86,8 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 24 }}>
-                {renderBarChart("困り事カテゴリ分布", stats.issueDistribution, "var(--accent)")}
-                {renderBarChart("重要資質・能力カテゴリ分布", stats.competencyDistribution, "#48c5a9")}
+                {renderBarChart("困り事カテゴリ分布", stats.issueDistribution, "var(--accent)", "issue")}
+                {renderBarChart("重要資質・能力カテゴリ分布", stats.competencyDistribution, "#48c5a9", "competency")}
             </div>
         </div>
     );

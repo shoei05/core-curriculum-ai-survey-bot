@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -22,9 +23,14 @@ const MarkdownContent = ({ content }: { content: string }) => (
     </ReactMarkdown>
 );
 
-export default function AdminLogsPage() {
+function AdminLogsContent() {
     const [logs, setLogs] = useState<SurveyLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    const issueFilter = searchParams.get("issue");
+    const competencyFilter = searchParams.get("competency");
 
     useEffect(() => {
         fetch("/api/admin/logs")
@@ -39,18 +45,119 @@ export default function AdminLogsPage() {
             });
     }, []);
 
+    const filteredLogs = useMemo(() => {
+        if (!issueFilter && !competencyFilter) return logs;
+        return logs.filter(log => {
+            if (issueFilter) {
+                return log.issue_categories?.some(cat => cat.category === issueFilter);
+            }
+            if (competencyFilter) {
+                return log.competency_categories?.some(cat => cat.category === competencyFilter);
+            }
+            return true;
+        });
+    }, [logs, issueFilter, competencyFilter]);
+
     if (loading) return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
+
+    const clearFilter = () => {
+        router.push("/admin/logs");
+    };
+
+    const handleDownloadCsv = async () => {
+        const password = window.prompt("管理パスワードを入力してください（CSV出力）");
+        if (!password) return;
+
+        try {
+            const res = await fetch("/api/admin/logs/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password }),
+            });
+
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `survey_logs_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else {
+                const data = await res.json();
+                alert(data.error || "出力に失敗しました。");
+            }
+        } catch (err) {
+            alert("通信エラーが発生しました。");
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        const password = window.prompt("管理パスワードを入力してください。この操作は取り消せません。");
+        if (!password) return;
+
+        try {
+            const res = await fetch("/api/admin/logs/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, password }),
+            });
+
+            if (res.ok) {
+                setLogs(prev => prev.filter(log => log.id !== id));
+                alert("削除しました。");
+            } else {
+                const data = await res.json();
+                alert(data.error || "削除に失敗しました。");
+            }
+        } catch (err) {
+            alert("通信エラーが発生しました。");
+        }
+    };
 
     return (
         <div>
-            <h2 style={{ marginBottom: 24 }}>回答一覧 (最近の100件)</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
+                <h2 style={{ margin: 0 }}>回答一覧 ({filteredLogs.length}件表示)</h2>
+
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button onClick={handleDownloadCsv} className="btn btn-primary" style={{ padding: "8px 16px" }}>
+                        CSV出力 (UTF-8 BOM)
+                    </button>
+
+                    {(issueFilter || competencyFilter) && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span className="pill" style={{ background: "var(--accent-light)", color: "var(--accent-deep)" }}>
+                                フィルタ: {issueFilter || competencyFilter}
+                            </span>
+                            <button onClick={clearFilter} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "4px 8px" }}>
+                                フィルタ解除
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <div className="log-list">
-                {logs.length === 0 && <p className="note">回答データがありません。</p>}
-                {logs.map((log) => (
+                {filteredLogs.length === 0 && <p className="note">条件に一致する回答データがありません。</p>}
+                {filteredLogs.map((log) => (
                     <details key={log.id} className="log-item" style={{ marginBottom: 16 }}>
-                        <summary style={{ fontSize: "1.1rem", padding: "8px 0" }}>
-                            {new Date(log.created_at).toLocaleString("ja-JP")} - {log.template_slug} ({log.messages.length}件のやり取り)
+                        <summary style={{ fontSize: "1.1rem", padding: "8px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                {new Date(log.created_at).toLocaleString("ja-JP")} - {log.template_slug} ({log.messages.length}件のやり取り)
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    handleDelete(log.id);
+                                }}
+                                className="btn btn-ghost"
+                                style={{ color: "#b00020", fontSize: "0.8rem", border: "1px solid #ffcdd2", background: "#fdf8f8" }}
+                            >
+                                削除
+                            </button>
                         </summary>
 
                         <div style={{ padding: "16px 0", display: "grid", gap: 16 }}>
@@ -100,5 +207,13 @@ export default function AdminLogsPage() {
                 ))}
             </div>
         </div>
+    );
+}
+
+export default function AdminLogsPage() {
+    return (
+        <Suspense fallback={<div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>}>
+            <AdminLogsContent />
+        </Suspense>
     );
 }
