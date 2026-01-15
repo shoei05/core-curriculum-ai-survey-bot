@@ -27,6 +27,13 @@ export function getAdminCredentials() {
     };
 }
 
+export function getAdminKeys() {
+    return {
+        deleteKey: process.env.ADMIN_DELETE_KEY || process.env.ADMIN_PASS || "password123",
+        downloadKey: process.env.ADMIN_DOWNLOAD_KEY || process.env.ADMIN_PASS || "password123",
+    };
+}
+
 export async function isAuthenticated(req: NextRequest) {
     const session = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
     if (!session) return false;

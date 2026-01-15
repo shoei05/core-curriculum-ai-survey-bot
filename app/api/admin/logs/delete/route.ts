@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getAdminCredentials } from "@/lib/auth";
+import { getAdminKeys } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -12,10 +12,10 @@ export async function POST(req: Request) {
 
     try {
         const { id, password } = await req.json();
-        const creds = getAdminCredentials();
+        const { deleteKey } = getAdminKeys();
 
         // Extra verification with password
-        if (password !== creds.pass) {
+        if (password !== deleteKey) {
             return NextResponse.json({ error: "パスワードが正しくありません" }, { status: 403 });
         }
 
