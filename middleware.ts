@@ -18,6 +18,7 @@ export async function middleware(req: NextRequest) {
             }
             const url = req.nextUrl.clone();
             url.pathname = "/admin/login";
+            url.searchParams.set("error", "session_expired");
             return NextResponse.redirect(url);
         }
     }
@@ -26,5 +27,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/admin/:path*", "/api/admin/:path*"],
+    matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"],
 };

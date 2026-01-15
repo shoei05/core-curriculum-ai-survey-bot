@@ -3,19 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 export const ADMIN_COOKIE_NAME = "admin_session";
 
 function base64Encode(value: string) {
+    // Standard btoa is available in most modern runtimes including Edge
+    // For Node.js, Buffer is preferred but btoa also exists in modern versions.
+    if (typeof btoa !== "undefined") {
+        // Handle UTF-8 safely for btoa
+        const bytes = new TextEncoder().encode(value);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
     if (typeof Buffer !== "undefined") {
         return Buffer.from(value).toString("base64");
-    }
-    if (typeof btoa !== "undefined") {
-        if (typeof TextEncoder !== "undefined") {
-            const bytes = new TextEncoder().encode(value);
-            let binary = "";
-            bytes.forEach((byte) => {
-                binary += String.fromCharCode(byte);
-            });
-            return btoa(binary);
-        }
-        return btoa(value);
     }
     return value;
 }

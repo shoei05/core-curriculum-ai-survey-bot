@@ -12,9 +12,14 @@ export async function POST(req: Request) {
             const isSecure = forwardedProto === "https" || new URL(req.url).protocol === "https:";
 
             const response = NextResponse.json({ success: true });
+
+            // On localhost, we might not have HTTPS. On Vercel, we always should.
+            const isLocalhost = req.url.includes("localhost") || req.url.includes("127.0.0.1");
+            const finalSecure = isLocalhost ? false : isSecure;
+
             response.cookies.set(ADMIN_COOKIE_NAME, sessionValue, {
                 httpOnly: true,
-                secure: isSecure,
+                secure: finalSecure,
                 sameSite: "lax",
                 maxAge: 60 * 60 * 24, // 1 day
                 path: "/",
