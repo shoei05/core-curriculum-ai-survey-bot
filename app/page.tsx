@@ -10,9 +10,14 @@ export default async function Home() {
       <section className="home-hero">
         <div>
           <span className="pill">事前調査</span>
-          <h1 className="hero-title">
-            {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
-          </h1>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <h1 className="hero-title">
+              {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
+            </h1>
+            <Link href="/admin" className="note" style={{ fontSize: "0.8rem", textDecoration: "underline" }}>
+              管理者
+            </Link>
+          </div>
           <p className="hero-subtitle">
             教員向けの事前調査をチャット形式で回答できます。
             回答は要約とカテゴリ別キーワードに自動整理されます。
