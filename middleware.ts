@@ -3,12 +3,14 @@ import { ADMIN_COOKIE_NAME, isAuthenticated } from "./lib/auth";
 
 export async function middleware(req: NextRequest) {
     const { pathname } = req.nextUrl;
+    const normalizedPath = pathname.replace(/\/$/, "") || "/";
 
     // Protect /admin routes and /api/admin routes
-    // Exclude login/logout from auth requirement
-    const isAdminPath = pathname.startsWith("/admin");
-    const isAdminApi = pathname.startsWith("/api/admin");
-    const isAuthEp = pathname === "/admin/login" || pathname === "/api/admin/login" || pathname === "/api/admin/logout";
+    const isAdminPath = normalizedPath.startsWith("/admin");
+    const isAdminApi = normalizedPath.startsWith("/api/admin");
+    const isAuthEp = normalizedPath === "/admin/login" ||
+        normalizedPath === "/api/admin/login" ||
+        normalizedPath === "/api/admin/logout";
 
     if ((isAdminPath || isAdminApi) && !isAuthEp) {
         const isAuth = await isAuthenticated(req);
@@ -27,5 +29,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"],
+    matcher: ["/admin/:path*", "/api/admin/:path*", "/admin"],
 };
