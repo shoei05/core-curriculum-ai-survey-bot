@@ -7,6 +7,7 @@ interface Stats {
     slugDistribution: Record<string, number>;
     issueDistribution: Record<string, number>;
     competencyDistribution: Record<string, number>;
+    coreItemsDistribution: Record<string, number>;
 }
 
 // Statsスキーマ検証
@@ -25,7 +26,8 @@ function validateStats(data: unknown): data is Stats {
 
     return isRecord(d.slugDistribution) &&
            isRecord(d.issueDistribution) &&
-           isRecord(d.competencyDistribution);
+           isRecord(d.competencyDistribution) &&
+           isRecord(d.coreItemsDistribution);
 }
 
 export default function AdminDashboard() {
@@ -76,7 +78,7 @@ export default function AdminDashboard() {
     if (loading) return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
     if (error || !stats) return <div className="alert">{error || "データの取得に失敗しました。"}</div>;
 
-    const renderBarChart = (title: string, data: Record<string, number>, color: string, type: "issue" | "competency") => {
+    const renderBarChart = (title: string, data: Record<string, number>, color: string, type: "issue" | "competency" | "coreItem") => {
         const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
         const max = Math.max(...entries.map(e => e[1]), 1);
 
@@ -135,6 +137,10 @@ export default function AdminDashboard() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 24 }}>
                 {renderBarChart("困り事カテゴリ分布", stats.issueDistribution, "var(--accent)", "issue")}
                 {renderBarChart("重要資質・能力カテゴリ分布", stats.competencyDistribution, "#48c5a9", "competency")}
+            </div>
+
+            <div style={{ marginTop: 24 }}>
+                {renderBarChart("モデル・コア・カリキュラム項目分布", stats.coreItemsDistribution, "#6c5ce7", "coreItem")}
             </div>
         </div>
     );

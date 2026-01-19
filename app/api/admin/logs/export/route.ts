@@ -30,14 +30,15 @@ export async function POST(req: Request) {
 
         // Generate CSV with BOM
         let csvContent = "\uFEFF"; // BOM
-        csvContent += "ID,作成日時,テンプレート,やり取り数,サマリー,困り事カテゴリ,資質能力カテゴリ\r\n";
+        csvContent += "ID,作成日時,テンプレート,やり取り数,サマリー,困り事カテゴリ,資質能力カテゴリ,コアカリ項目\r\n";
 
         (logs as any[]).forEach(log => {
             const summary = `"${(log.summary_bullets || []).join(" | ").replace(/"/g, '""')}"`;
             const issues = `"${(log.issue_categories || []).map((c: any) => c.category).join(" | ").replace(/"/g, '""')}"`;
             const comps = `"${(log.competency_categories || []).map((c: any) => c.category).join(" | ").replace(/"/g, '""')}"`;
+            const coreItems = `"${(log.core_items || []).join(" | ").replace(/"/g, '""')}"`;
 
-            csvContent += `${log.id},${new Date(log.created_at).toLocaleString("ja-JP")},${log.template_slug},${log.messages?.length || 0},${summary},${issues},${comps}\r\n`;
+            csvContent += `${log.id},${new Date(log.created_at).toLocaleString("ja-JP")},${log.template_slug},${log.messages?.length || 0},${summary},${issues},${comps},${coreItems}\r\n`;
         });
 
         return new NextResponse(csvContent, {

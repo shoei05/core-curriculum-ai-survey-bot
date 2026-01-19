@@ -15,7 +15,7 @@ export async function GET() {
         // 1. Get all logs for aggregation
         const { data: logs, error } = await supabase
             .from(tableName)
-            .select("template_slug, issue_categories, competency_categories")
+            .select("template_slug, issue_categories, competency_categories, core_items")
             .order("created_at", { ascending: false });
 
         if (error) throw error;
@@ -25,6 +25,7 @@ export async function GET() {
             slugDistribution: {} as Record<string, number>,
             issueDistribution: {} as Record<string, number>,
             competencyDistribution: {} as Record<string, number>,
+            coreItemsDistribution: {} as Record<string, number>,
         };
 
         (logs as any[]).forEach((log) => {
@@ -44,6 +45,12 @@ export async function GET() {
             comps.forEach((group: any) => {
                 const cat = group.category;
                 stats.competencyDistribution[cat] = (stats.competencyDistribution[cat] || 0) + 1;
+            });
+
+            // Core items dist
+            const coreItems = log.core_items || [];
+            coreItems.forEach((item: string) => {
+                stats.coreItemsDistribution[item] = (stats.coreItemsDistribution[item] || 0) + 1;
             });
         });
 

@@ -61,6 +61,17 @@ const extractJson = (text: string) => {
 const formatTranscript = (messages: { role: string; content: string }[]) =>
   messages.map((m) => `${m.role === "user" ? "回答者" : "AI"}: ${m.content}`).join("\n");
 
+// Convert core item codes to boolean columns (e.g., "PR-01" -> { core_item_pr_01: true })
+const coreItemsToColumns = (coreItems: string[]): Record<string, boolean> => {
+  const columns: Record<string, boolean> = {};
+  coreItems.forEach(item => {
+    // Convert "PR-01" to "core_item_pr_01"
+    const columnName = `core_item_${item.toLowerCase().replace(/-/g, "_")}`;
+    columns[columnName] = true;
+  });
+  return columns;
+};
+
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
@@ -155,6 +166,10 @@ export async function POST(req: Request) {
     };
 
     const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
+
+    // Convert core items to individual columns for easier aggregation
+    const coreItemColumns = coreItemsToColumns(payload.coreItems ?? []);
+
     const insertPayload = {
       template_slug: body.templateSlug ?? "core-curriculum-2026-survey",
       started_at: body.startedAt ?? null,
@@ -164,7 +179,8 @@ export async function POST(req: Request) {
       keyword_groups: payload.keywordGroups,
       issue_categories: payload.issueCategories,
       competency_categories: payload.competencyCategories,
-      core_items: payload.coreItems
+      core_items: payload.coreItems,
+      ...coreItemColumns
     };
 
     const supabaseTable = (supabase as unknown as {
@@ -183,21 +199,37 @@ export async function POST(req: Request) {
         errorMessage.includes("column") &&
         (errorMessage.includes("issue_categories") ||
          errorMessage.includes("competency_categories") ||
-         errorMessage.includes("core_items"));
+         errorMessage.includes("core_items") ||
+         errorMessage.includes("core_item_"));
 
       if (isMissingColumn) {
+        // Retry with only basic columns (no issue/competency/core_items categories)
         const fallbackPayload = {
           template_slug: insertPayload.template_slug,
           started_at: insertPayload.started_at,
           ended_at: insertPayload.ended_at,
           messages: insertPayload.messages,
           summary_bullets: insertPayload.summary_bullets,
-          keyword_groups: insertPayload.keyword_groups
+          keyword_groups: insertPayload.keyword_groups,
+          core_items: insertPayload.core_items
         };
 
         const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
         if (retryError) {
           console.error("Supabase insert retry error:", retryError);
+          // Try again with even fewer columns (no core_items)
+          const minimalPayload = {
+            template_slug: insertPayload.template_slug,
+            started_at: insertPayload.started_at,
+            ended_at: insertPayload.ended_at,
+            messages: insertPayload.messages,
+            summary_bullets: insertPayload.summary_bullets,
+            keyword_groups: insertPayload.keyword_groups
+          };
+          const { error: minimalError } = await supabaseTable.insert([minimalPayload]);
+          if (minimalError) {
+            console.error("Supabase insert minimal retry error:", minimalError);
+          }
         }
       }
     }

@@ -15,6 +15,7 @@ interface SurveyLog {
     keyword_groups: any[];
     issue_categories: any[];
     competency_categories: any[];
+    core_items: string[];
 }
 
 const MarkdownContent = ({ content }: { content: string }) => (
@@ -31,6 +32,7 @@ function AdminLogsContent() {
 
     const issueFilter = searchParams.get("issue");
     const competencyFilter = searchParams.get("competency");
+    const coreItemFilter = searchParams.get("coreItem");
 
     useEffect(() => {
         fetch("/api/admin/logs")
@@ -46,7 +48,7 @@ function AdminLogsContent() {
     }, []);
 
     const filteredLogs = useMemo(() => {
-        if (!issueFilter && !competencyFilter) return logs;
+        if (!issueFilter && !competencyFilter && !coreItemFilter) return logs;
         return logs.filter(log => {
             if (issueFilter) {
                 return log.issue_categories?.some(cat => cat.category === issueFilter);
@@ -54,9 +56,12 @@ function AdminLogsContent() {
             if (competencyFilter) {
                 return log.competency_categories?.some(cat => cat.category === competencyFilter);
             }
+            if (coreItemFilter) {
+                return log.core_items?.includes(coreItemFilter);
+            }
             return true;
         });
-    }, [logs, issueFilter, competencyFilter]);
+    }, [logs, issueFilter, competencyFilter, coreItemFilter]);
 
     if (loading) return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
 
@@ -127,10 +132,10 @@ function AdminLogsContent() {
                         CSV出力 (UTF-8 BOM)
                     </button>
 
-                    {(issueFilter || competencyFilter) && (
+                    {(issueFilter || competencyFilter || coreItemFilter) && (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span className="pill" style={{ background: "var(--accent-light)", color: "var(--accent-deep)" }}>
-                                フィルタ: {issueFilter || competencyFilter}
+                                フィルタ: {issueFilter || competencyFilter || coreItemFilter}
                             </span>
                             <button onClick={clearFilter} className="btn btn-ghost" style={{ fontSize: "0.8rem", padding: "4px 8px" }}>
                                 フィルタ解除
@@ -168,7 +173,7 @@ function AdminLogsContent() {
                                 </ul>
                             </div>
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                                 <div className="keyword-item">
                                     <div className="log-section-title">困り事</div>
                                     {log.issue_categories?.map((g: any, i: number) => (
@@ -186,6 +191,14 @@ function AdminLogsContent() {
                                             <div className="note">{g.items?.join(" / ")}</div>
                                         </div>
                                     ))}
+                                </div>
+                                <div className="keyword-item">
+                                    <div className="log-section-title">コアカリ項目</div>
+                                    {log.core_items && log.core_items.length > 0 ? (
+                                        <div className="note">{log.core_items.join(", ")}</div>
+                                    ) : (
+                                        <div className="note">該当なし</div>
+                                    )}
                                 </div>
                             </div>
 
