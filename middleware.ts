@@ -13,14 +13,19 @@ export async function middleware(req: NextRequest) {
         normalizedPath === "/api/admin/logout";
 
     if ((isAdminPath || isAdminApi) && !isAuthEp) {
+        const hasCookie = req.cookies.has(ADMIN_COOKIE_NAME);
         const isAuth = await isAuthenticated(req);
+
         if (!isAuth) {
             if (isAdminApi) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
             }
             const url = req.nextUrl.clone();
             url.pathname = "/admin/login";
-            url.searchParams.set("error", "session_expired");
+            // クッキーが存在するのに認証に失敗した場合のみ、セッション切れを表示
+            if (hasCookie) {
+                url.searchParams.set("error", "session_expired");
+            }
             return NextResponse.redirect(url);
         }
     }
