@@ -1,6 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export const ADMIN_COOKIE_NAME = "admin_session";
+
+/**
+ * 環境変数の設定を検証
+ * 本番環境では必須項目が設定されていることを確認
+ */
+export function validateEnvConfig(): { valid: boolean; missing: string[] } {
+    const isProduction = process.env.NODE_ENV === "production";
+    const missing: string[] = [];
+
+    if (isProduction) {
+        if (!process.env.ADMIN_USER) missing.push("ADMIN_USER");
+        if (!process.env.ADMIN_PASS) missing.push("ADMIN_PASS");
+        if (!process.env.ADMIN_SESSION_SECRET) missing.push("ADMIN_SESSION_SECRET");
+        if (!process.env.ADMIN_DELETE_KEY) missing.push("ADMIN_DELETE_KEY");
+        if (!process.env.ADMIN_DOWNLOAD_KEY) missing.push("ADMIN_DOWNLOAD_KEY");
+    }
+
+    return { valid: missing.length === 0, missing };
+}
 
 function base64Encode(value: string) {
     if (typeof Buffer !== "undefined") {
@@ -37,22 +56,12 @@ export function getAdminKeys() {
 export async function isAuthenticated(req: NextRequest) {
     const session = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
 
-    console.log("[AUTH] Checking authentication:", {
-        hasCookie: !!session,
-        cookieName: ADMIN_COOKIE_NAME,
-        cookieValue: session?.substring(0, 20) + "...",
-        allCookies: req.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
-    });
-
     if (!session) return false;
 
-    // For simplicity but some safety, sessions are "user:pass" base64 encoded
+    // For simplicity but some safety, sessions are "user:pass:secret" base64 encoded
     // In a real app we'd use JWT, but this meets "Simple Password Auth"
     const { user, pass } = getAdminCredentials();
     const validSession = createSessionValue(user, pass);
 
-    const isValid = session === validSession;
-    console.log("[AUTH] Validation result:", { isValid });
-
-    return isValid;
+    return session === validSession;
 }

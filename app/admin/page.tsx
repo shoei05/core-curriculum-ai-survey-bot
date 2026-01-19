@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface Stats {
     totalCount: number;
@@ -9,25 +9,72 @@ interface Stats {
     competencyDistribution: Record<string, number>;
 }
 
+// Statsスキーマ検証
+function validateStats(data: unknown): data is Stats {
+    if (typeof data !== "object" || data === null) return false;
+
+    const d = data as Record<string, unknown>;
+    if (typeof d.totalCount !== "number" || d.totalCount < 0) return false;
+
+    const isRecord = (v: unknown): v is Record<string, number> => {
+        if (typeof v !== "object" || v === null) return false;
+        return Object.values(v as Record<string, unknown>).every(
+            val => typeof val === "number" && val >= 0
+        );
+    };
+
+    return isRecord(d.slugDistribution) &&
+           isRecord(d.issueDistribution) &&
+           isRecord(d.competencyDistribution);
+}
+
 export default function AdminDashboard() {
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
     useEffect(() => {
-        fetch("/api/admin/stats")
-            .then(res => res.json())
+        // 前回のリクエストをキャンセル
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        abortControllerRef.current = new AbortController();
+
+        fetch("/api/admin/stats", { signal: abortControllerRef.current.signal })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
+                if (!validateStats(data)) {
+                    throw new Error("Invalid stats data format");
+                }
                 setStats(data);
                 setLoading(false);
+                setError(null);
             })
             .catch(err => {
-                console.error(err);
+                if (err.name === "AbortError") {
+                    return; // アボート時は何もしない
+                }
+                console.error("Stats fetch error:", err);
+                setError("データの取得に失敗しました");
                 setLoading(false);
             });
+
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, []);
 
     if (loading) return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
-    if (!stats) return <div className="alert">データの取得に失敗しました。</div>;
+    if (error || !stats) return <div className="alert">{error || "データの取得に失敗しました。"}</div>;
 
     const renderBarChart = (title: string, data: Record<string, number>, color: string, type: "issue" | "competency") => {
         const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
