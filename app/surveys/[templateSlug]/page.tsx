@@ -442,7 +442,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>調査方法</summary>
         <div className="consent-details-content">
           <ul>
@@ -453,7 +453,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>対象者と選出理由</summary>
         <div className="consent-details-content">
           <p><strong>対象：</strong>卒前医学教育に携わる教員の方</p>
@@ -461,7 +461,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>リスクとベネフィット</summary>
         <div className="consent-details-content">
           <p><strong>リスク：</strong>時間の負担、教育上の課題について話すことによる心理的な不快感の可能性（いずれも軽微）</p>
@@ -470,7 +470,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>プライバシーとデータ取り扱い</summary>
         <div className="consent-details-content">
           <ul>
@@ -482,7 +482,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>参加者の権利</summary>
         <div className="consent-details-content">
           <ul>
@@ -495,7 +495,7 @@ export default function SurveyPage({
         </div>
       </details>
 
-      <details className="consent-details">
+      <details className="consent-details" open>
         <summary>研究承認・問い合わせ</summary>
         <div className="consent-details-content">
           <p><strong>IRB承認番号：</strong>[機関に合わせて設定 - 例: IRB-2026-001]</p>
