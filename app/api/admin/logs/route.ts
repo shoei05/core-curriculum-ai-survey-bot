@@ -12,11 +12,33 @@ export async function GET(req: Request) {
     const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
 
     try {
-        const { data: logs, error } = await supabase
-            .from(tableName)
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(100);
+        // Try with explicit columns first, fall back to * if needed
+        let logs: any[] | null = null;
+        let error: any = null;
+
+        try {
+            const result = await supabase
+                .from(tableName)
+                .select("id, template_slug, created_at, messages, summary_bullets, keyword_groups, issue_categories, competency_categories, core_items")
+                .order("created_at", { ascending: false })
+                .limit(100);
+            logs = result.data;
+            error = result.error;
+        } catch (e) {
+            error = e;
+        }
+
+        // If error, try with * (will select all available columns)
+        if (error || !logs) {
+            console.warn("Some columns not found, using * selector:", error?.message);
+            const result = await supabase
+                .from(tableName)
+                .select("*")
+                .order("created_at", { ascending: false })
+                .limit(100);
+            logs = result.data;
+            error = result.error;
+        }
 
         if (error) throw error;
 

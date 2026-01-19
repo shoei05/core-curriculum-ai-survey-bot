@@ -13,12 +13,43 @@ export async function GET() {
 
     try {
         // 1. Get all logs for aggregation
-        const { data: logs, error } = await supabase
-            .from(tableName)
-            .select("template_slug, issue_categories, competency_categories, core_items")
-            .order("created_at", { ascending: false });
+        // First try with core_items, fall back to without if column doesn't exist
+        let logs: any[] | null = null;
+        let error: any = null;
+
+        try {
+            const result = await supabase
+                .from(tableName)
+                .select("template_slug, issue_categories, competency_categories, core_items")
+                .order("created_at", { ascending: false });
+            logs = result.data;
+            error = result.error;
+        } catch (e) {
+            error = e;
+        }
+
+        // If error, try without core_items column
+        if (error || !logs) {
+            console.warn("core_items column not found, retrying without it:", error?.message);
+            const result = await supabase
+                .from(tableName)
+                .select("template_slug, issue_categories, competency_categories")
+                .order("created_at", { ascending: false });
+            logs = result.data;
+            error = result.error;
+        }
 
         if (error) throw error;
+
+        if (!logs) {
+            return NextResponse.json({
+                totalCount: 0,
+                slugDistribution: {},
+                issueDistribution: {},
+                competencyDistribution: {},
+                coreItemsDistribution: {},
+            });
+        }
 
         const stats = {
             totalCount: logs.length,
@@ -47,7 +78,7 @@ export async function GET() {
                 stats.competencyDistribution[cat] = (stats.competencyDistribution[cat] || 0) + 1;
             });
 
-            // Core items dist
+            // Core items dist (only if available)
             const coreItems = log.core_items || [];
             coreItems.forEach((item: string) => {
                 stats.coreItemsDistribution[item] = (stats.coreItemsDistribution[item] || 0) + 1;
