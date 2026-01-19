@@ -1,7 +1,12 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-01-19T09:37:26.036Z",
-  "skills": {},
+  "updatedAt": "2026-01-19T21:52:32.385Z",
+  "skills": {
+    "cursor-mem": {
+      "count": 1,
+      "lastUsed": "2026-01-19T21:52:32.384Z"
+    }
+  },
   "commands": {
     "simple-review": {
       "count": 2,

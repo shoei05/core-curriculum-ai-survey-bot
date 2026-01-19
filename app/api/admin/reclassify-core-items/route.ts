@@ -142,7 +142,7 @@ export async function POST(req: Request) {
       processed,
       updated,
       failed,
-      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
+      errors: errors.length > 0 ? errors : undefined
     });
 
   } catch (error) {

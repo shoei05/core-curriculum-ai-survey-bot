@@ -42,6 +42,7 @@ export default function AdminDashboard() {
     const [reclassifyStatus, setReclassifyStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [reclassifyMessage, setReclassifyMessage] = useState("");
     const [reclassifyResult, setReclassifyResult] = useState<{ processed: number; updated: number; failed: number } | null>(null);
+    const [reclassifyErrors, setReclassifyErrors] = useState<Array<{ id: string; error: string }> | null>(null);
 
     useEffect(() => {
         // 前回のリクエストをキャンセル
@@ -85,6 +86,7 @@ export default function AdminDashboard() {
     const handleReclassify = async () => {
         setReclassifyStatus("processing");
         setReclassifyMessage("処理中...");
+        setReclassifyErrors(null);
 
         try {
             const res = await fetch("/api/admin/reclassify-core-items", {
@@ -102,6 +104,7 @@ export default function AdminDashboard() {
             setReclassifyStatus("success");
             setReclassifyMessage(data.message || "処理完了");
             setReclassifyResult({ processed: data.processed, updated: data.updated, failed: data.failed });
+            setReclassifyErrors(data.errors || null);
 
             // Refresh stats after successful reclassification
             if (abortControllerRef.current) {
@@ -177,6 +180,7 @@ export default function AdminDashboard() {
                         setReclassifyStatus("idle");
                         setReclassifyMessage("");
                         setReclassifyResult(null);
+                        setReclassifyErrors(null);
                         setReclassifyPassword("");
                     }}
                     style={{
@@ -325,6 +329,24 @@ export default function AdminDashboard() {
                                             <span>失敗:</span>
                                             <span style={{ fontWeight: 700, color: "#dc3545" }}>{reclassifyResult.failed}</span>
                                         </div>
+                                    </div>
+                                )}
+
+                                {reclassifyErrors && reclassifyErrors.length > 0 && (
+                                    <div style={{
+                                        padding: 16,
+                                        background: "#fff3cd",
+                                        borderRadius: 6,
+                                        marginBottom: 16,
+                                        maxHeight: 200,
+                                        overflow: "auto"
+                                    }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 8 }}>エラー詳細:</div>
+                                        {reclassifyErrors.map((err, idx) => (
+                                            <div key={idx} style={{ fontSize: "0.85rem", marginBottom: 4, fontFamily: "monospace" }}>
+                                                ID: {err.id.slice(0, 8)}... - {err.error}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
 
