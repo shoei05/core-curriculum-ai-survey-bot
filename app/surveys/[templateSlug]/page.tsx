@@ -447,7 +447,7 @@ export default function SurveyPage({
         <div className="consent-details-content">
           <ul>
             <li><strong>形式：</strong>AIアシスタントによる対話形式のインタビュー調査</li>
-            <li><strong>所要時間：</strong>約5分間（延長可能）</li>
+            <li><strong>所要時間：</strong>約5分間（時間終了後は延長可能）</li>
             <li><strong>技術：</strong>AIを用いて回答内容を解析し、テーマ・キーワードを抽出します</li>
           </ul>
         </div>
@@ -653,7 +653,7 @@ export default function SurveyPage({
               )}
             </div>
             <p className="note" style={{ marginTop: 6 }}>
-              ※できるだけ5分間ご入力ください（「終了してサマライズ」はなるべく押さないでください）
+              ※できるだけ5分間ご入力ください（時間終了後は延長可能です。「終了してサマライズ」はなるべく押さないでください）
             </p>
           </div>
 
