@@ -12,7 +12,7 @@ const MessageSchema = z.object({
 });
 
 const BodySchema = z.object({
-  messages: z.array(MessageSchema).max(MAX_MESSAGES, `メッセージは${MAX_MESSAGES}件以下にしてください`).min(1, "最低1件のメッセージが必要です"),
+  messages: z.array(MessageSchema).max(MAX_MESSAGES, `メッセージは${MAX_MESSAGES}件以下にしてください`),
   templateSlug: z.string().optional()
 });
 
@@ -47,11 +47,16 @@ export async function POST(req: Request) {
       baseURL: "https://openrouter.ai/api/v1"
     });
 
+    // For initial greeting (empty messages), add a dummy user message to trigger AI response
+    const apiMessages = body.messages.length === 0
+      ? [{ role: "user" as const, content: "（初期挨拶をお願いします）" }]
+      : body.messages.map((m) => ({ role: m.role, content: m.content }));
+
     const response = await client.chat.completions.create({
       model: "google/gemini-2.0-flash-001",
       messages: [
         { role: "system", content: template.systemPrompt },
-        ...body.messages.map((m) => ({ role: m.role, content: m.content }))
+        ...apiMessages
       ]
     });
 
