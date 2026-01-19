@@ -36,6 +36,14 @@ export function getAdminKeys() {
 
 export async function isAuthenticated(req: NextRequest) {
     const session = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+
+    console.log("[AUTH] Checking authentication:", {
+        hasCookie: !!session,
+        cookieName: ADMIN_COOKIE_NAME,
+        cookieValue: session?.substring(0, 20) + "...",
+        allCookies: req.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
+    });
+
     if (!session) return false;
 
     // For simplicity but some safety, sessions are "user:pass" base64 encoded
@@ -43,5 +51,8 @@ export async function isAuthenticated(req: NextRequest) {
     const { user, pass } = getAdminCredentials();
     const validSession = createSessionValue(user, pass);
 
-    return session === validSession;
+    const isValid = session === validSession;
+    console.log("[AUTH] Validation result:", { isValid });
+
+    return isValid;
 }
