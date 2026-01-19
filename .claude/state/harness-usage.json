@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "updatedAt": "2026-01-19T09:37:26.036Z",
+  "skills": {},
+  "commands": {
+    "simple-review": {
+      "count": 2,
+      "lastUsed": "2026-01-19T09:36:41.138Z"
+    },
+    "codex-review": {
+      "count": 2,
+      "lastUsed": "2026-01-19T09:37:26.035Z"
+    }
+  },
+  "agents": {},
+  "hooks": {}
+}

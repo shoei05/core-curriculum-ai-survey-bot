@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       : body.messages.map((m) => ({ role: m.role, content: m.content }));
 
     const response = await client.chat.completions.create({
-      model: "google/gemini-2.0-flash-001",
+      model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: template.systemPrompt },
         ...apiMessages

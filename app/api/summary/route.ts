@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     const transcript = formatTranscript(body.messages);
 
     const response = await client.chat.completions.create({
-      model: "google/gemini-2.0-flash-001",
+      model: "google/gemini-3-flash-preview",
       temperature: 0.2,
       messages: [
         {
