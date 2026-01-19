@@ -31,11 +31,13 @@ interface SurveyLog {
   keywordGroups: KeywordGroup[];
   issueCategories?: CategoryGroup[];
   competencyCategories?: CategoryGroup[];
+  coreItems?: string[];
 }
 
 const TIME_LIMIT_SECONDS = 5 * 60;
 const CLOSED_QUESTION_COUNT = 3; // First 3 questions are closed questions with buttons
 const LOG_STORAGE_KEY = "surveyLogs:v1";
+const EXTENSION_SECONDS = 3 * 60; // 3 minutes per extension
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -67,11 +69,14 @@ export default function SurveyPage({
   const [questionCount, setQuestionCount] = useState(0); // Track number of AI questions
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [isEnded, setIsEnded] = useState(false);
+  const [showTimeUpOptions, setShowTimeUpOptions] = useState(false);
+  const [totalExtendedTime, setTotalExtendedTime] = useState(0);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryBullets, setSummaryBullets] = useState<string[]>([]);
   const [keywordGroups, setKeywordGroups] = useState<KeywordGroup[]>([]);
   const [issueCategories, setIssueCategories] = useState<CategoryGroup[]>([]);
   const [competencyCategories, setCompetencyCategories] = useState<CategoryGroup[]>([]);
+  const [coreItems, setCoreItems] = useState<string[]>([]);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryRequested, setSummaryRequested] = useState(false);
   const [summaryAttempted, setSummaryAttempted] = useState(false);
@@ -120,6 +125,7 @@ export default function SurveyPage({
         setRemainingTime((prev) => {
           if (prev <= 1) {
             setIsExpired(true);
+            setShowTimeUpOptions(true);
             if (timerRef.current) clearInterval(timerRef.current);
             return 0;
           }
@@ -234,6 +240,11 @@ export default function SurveyPage({
       text += `\r\n`;
     }
 
+    if (coreItems.length > 0) {
+      text += `■該当するコアカリ項目\r\n`;
+      text += `${coreItems.join(", ")}\r\n\r\n`;
+    }
+
     if (keywordGroups.length > 0) {
       text += `■カテゴリ別キーワード\r\n`;
       keywordGroups.forEach(g => {
@@ -259,14 +270,14 @@ export default function SurveyPage({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [summaryBullets, issueCategories, competencyCategories, keywordGroups, messages, templateSlug]);
+  }, [summaryBullets, issueCategories, competencyCategories, coreItems, keywordGroups, messages, templateSlug]);
 
-  // Auto-summarize when time expires
+  // Auto-summarize when time expires (only if user didn't choose to extend)
   useEffect(() => {
-    if (isExpired && !isEnded && !summaryRequested && messagesRef.current.length > 0) {
+    if (isExpired && !showTimeUpOptions && !isEnded && !summaryRequested && messagesRef.current.length > 0) {
       setIsEnded(true);
     }
-  }, [isExpired, isEnded, summaryRequested]);
+  }, [isExpired, showTimeUpOptions, isEnded, summaryRequested]);
 
   const summarizeConversation = useCallback(async () => {
     if (isSummarizing || summaryRequested) return;
@@ -297,11 +308,13 @@ export default function SurveyPage({
       const groups = Array.isArray(data.keywordGroups) ? data.keywordGroups : [];
       const issues = Array.isArray(data.issueCategories) ? data.issueCategories : [];
       const competencies = Array.isArray(data.competencyCategories) ? data.competencyCategories : [];
+      const coreItemsList = Array.isArray(data.coreItems) ? data.coreItems : [];
 
       setSummaryBullets(summary);
       setKeywordGroups(groups);
       setIssueCategories(issues);
       setCompetencyCategories(competencies);
+      setCoreItems(coreItemsList);
 
       const sessionStartedAt = startedAt ?? finishedAt;
 
@@ -314,7 +327,8 @@ export default function SurveyPage({
         summaryBullets: summary,
         keywordGroups: groups,
         issueCategories: issues,
-        competencyCategories: competencies
+        competencyCategories: competencies,
+        coreItems: coreItemsList
       };
 
       persistLogs((prev) => [logEntry, ...prev].slice(0, 50));
@@ -348,8 +362,22 @@ export default function SurveyPage({
     await summarizeConversation();
   };
 
+  const handleExtend = () => {
+    setRemainingTime((prev) => prev + EXTENSION_SECONDS);
+    setTotalExtendedTime((prev) => prev + EXTENSION_SECONDS);
+    setIsExpired(false);
+    setShowTimeUpOptions(false);
+  };
+
+  const handleTimeUpEnd = async () => {
+    setShowTimeUpOptions(false);
+    setIsEnded(true);
+    focusSidePanel();
+    await summarizeConversation();
+  };
+
   const sendMessage = async (content: string) => {
-    if (!content.trim() || isLoading || isExpired || isEnded) return;
+    if (!content.trim() || isLoading || showTimeUpOptions || isEnded) return;
 
     const currentMessages = messagesRef.current;
     const userMessage: Message = {
@@ -405,14 +433,93 @@ export default function SurveyPage({
   const intro = useMemo(() => (
     <div className="consent-card">
       <h2>同意の確認</h2>
-      <ul className="consent-list">
-        <li>目的：モデル・コア改定のための周辺調査（教育上の課題・ニーズ収集）</li>
-        <li>氏名・連絡先など個人を特定する情報は入力しないでください</li>
-        <li>途中終了しても構いません</li>
-        <li>回答内容は匿名化・集計して利用します</li>
-        <li style={{ fontWeight: 600 }}>制限時間：5分間（できるだけ5分間入力してください）</li>
-        <li style={{ fontWeight: 600 }}>「終了してサマライズ」はなるべく押さないでください</li>
-      </ul>
+
+      <details className="consent-details" open>
+        <summary>研究背景・目的</summary>
+        <div className="consent-details-content">
+          <p><strong>目的：</strong>医学教育モデル・コア・カリキュラム改定のため、現状の教育課題やニーズを把握する研究です。</p>
+          <p><strong>なぜこの調査：</strong>教育現場での困りごとや、優先すべき資質・能力について、先生方の視点をお聞かせいただきたく存じます。</p>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>調査方法</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>形式：</strong>AIアシスタントによる対話形式のインタビュー調査</li>
+            <li><strong>所要時間：</strong>約5分間（延長可能）</li>
+            <li><strong>技術：</strong>AIを用いて回答内容を解析し、テーマ・キーワードを抽出します</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>対象者と選出理由</summary>
+        <div className="consent-details-content">
+          <p><strong>対象：</strong>卒前医学教育に携わる教員の方</p>
+          <p><strong>選出理由：</strong>医学教育の専門知識と実践経験をお持ちであり、カリキュラム改定に向けた貴重なご意見をお伺いできるため</p>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>リスクとベネフィット</summary>
+        <div className="consent-details-content">
+          <p><strong>リスク：</strong>時間の負担、教育上の課題について話すことによる心理的な不快感の可能性（いずれも軽微）</p>
+          <p><strong>ベネフィット：</strong>医学教育カリキュラムの改善に貢献</p>
+          <p><strong>謝礼：</strong>なし</p>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>プライバシーとデータ取り扱い</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>匿名性：</strong>個人を特定できる情報（氏名・所属・連絡先等）は収集しません</li>
+            <li><strong>集計：</strong>回答は他の回答者の方のデータと合わせて集約・分析します</li>
+            <li><strong>保存：</strong>データは暗号化され、アクセス制限された環境で保存されます</li>
+            <li><strong>保持期間：</strong>研究目的のため5年間保存します</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>参加者の権利</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>任意性：</strong>研究への参加は任意です</li>
+            <li><strong>拒否権：</strong>同意しない場合でも不利益は一切ありません</li>
+            <li><strong>途中撤回：</strong>いつでも参加を取りやめることができます</li>
+            <li><strong>質問省略：</strong>回答したくない質問はスキップ可能です</li>
+            <li><strong>データ削除請求：</strong>回答後の削除を希望される場合は、下記連絡先までお問い合わせください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details">
+        <summary>研究承認・問い合わせ</summary>
+        <div className="consent-details-content">
+          <p><strong>IRB承認番号：</strong>[機関に合わせて設定 - 例: IRB-2026-001]</p>
+          <p><strong>研究責任者：</strong>[責任者氏名・所属]</p>
+          <p><strong>所属機関：</strong>[機関名]</p>
+          <p><strong>研究に関するお問い合わせ：</strong>[email/phone]</p>
+          <p><strong>研究倫理に関するお問い合わせ：</strong>[IRB連絡先]</p>
+        </div>
+      </details>
+
+      <div className="consent-statement">
+        <p>「同意して開始」をクリックすることで、以下のことを確認したものとみなします：</p>
+        <ul>
+          <li>上記の内容を読み、理解した</li>
+          <li>自らの意志で研究に参加することに同意する</li>
+          <li>いつでも参加を取りやめることができることを理解した</li>
+        </ul>
+      </div>
+
+      <div className="consent-timer-notice">
+        <p style={{ fontWeight: 600 }}>⏰ 制限時間：5分間（できるまで5分間お話しください）</p>
+        <p style={{ fontSize: 14, color: "#666" }}>※時間終了後、延長を選択いただけます</p>
+      </div>
+
       <button
         onClick={() => setConsented(true)}
         className="btn btn-primary"
@@ -432,7 +539,7 @@ export default function SurveyPage({
   }
 
   const suggestions = getSuggestions();
-  const isInputDisabled = isLoading || isExpired || isEnded;
+  const isInputDisabled = isLoading || showTimeUpOptions || isEnded;
   const shouldShowChatTransfer = summaryRequested || isEnded;
   const reportGeneratedAt = new Date().toLocaleString("ja-JP");
 
@@ -444,7 +551,29 @@ export default function SurveyPage({
         <h2>アンケート</h2>
       </header>
 
-      {isExpired && (
+      {showTimeUpOptions && (
+        <div className="alert time-up-options">
+          <p style={{ margin: "0 0 12px 0", fontWeight: 600 }}>⏰ 制限時間が終了しました。もう少し続けますか？</p>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <button
+              onClick={handleExtend}
+              className="btn btn-primary"
+              style={{ padding: "10px 16px" }}
+            >
+              もう少し続ける (+3分)
+            </button>
+            <button
+              onClick={handleTimeUpEnd}
+              className="btn btn-ghost"
+              style={{ padding: "10px 16px", borderColor: "var(--accent)" }}
+            >
+              終了してサマライズ
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isExpired && !showTimeUpOptions && (
         <div className="alert">
           ⏰ 制限時間が終了しました。ご協力ありがとうございました。
         </div>
@@ -517,6 +646,11 @@ export default function SurveyPage({
             )}
             <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
               残り {formatTime(remainingTime)}
+              {totalExtendedTime > 0 && (
+                <span style={{ fontSize: "0.85em", marginLeft: "4px" }}>
+                  (+{Math.floor(totalExtendedTime / 60)}分延長中)
+                </span>
+              )}
             </div>
             <p className="note" style={{ marginTop: 6 }}>
               ※できるだけ5分間ご入力ください（「終了してサマライズ」はなるべく押さないでください）
@@ -606,6 +740,15 @@ export default function SurveyPage({
                 </div>
               </div>
             )}
+
+            {coreItems.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div className="log-section-title">該当するコアカリ項目</div>
+                <div style={{ color: "#555", fontSize: 14 }}>
+                  {coreItems.join(", ")}
+                </div>
+              </div>
+            )}
           </div>
 
           {summaryBullets.length > 0 && (
@@ -654,6 +797,7 @@ export default function SurveyPage({
               logs.map((log) => {
                 const issueCats = log.issueCategories ?? [];
                 const competencyCats = log.competencyCategories ?? [];
+                const logCoreItems = log.coreItems ?? [];
 
                 return (
                   <details key={log.id} className="log-item">
@@ -706,6 +850,15 @@ export default function SurveyPage({
                             <div style={{ color: "#555" }}>{group.items.join(" / ")}</div>
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {logCoreItems.length > 0 && (
+                      <div className="log-section">
+                        <div className="log-section-title">該当するコアカリ項目</div>
+                        <div style={{ color: "#555", fontSize: 14 }}>
+                          {logCoreItems.join(", ")}
+                        </div>
                       </div>
                     )}
 

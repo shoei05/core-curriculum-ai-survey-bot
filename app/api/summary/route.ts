@@ -25,7 +25,8 @@ const SummarySchema = z.object({
   competencyCategories: z.array(z.object({
     category: z.string(),
     items: z.array(z.string()).min(1)
-  })).min(1)
+  })).min(1),
+  coreItems: z.array(z.string()).optional()
 });
 
 const extractJson = (text: string) => {
@@ -114,7 +115,8 @@ export async function POST(req: Request) {
             `  ],\n` +
             `  "competencyCategories": [\n` +
             `    { "category": "重要な資質・能力カテゴリ", "items": ["項目1", "項目2"] }\n` +
-            `  ]\n` +
+            `  ],\n` +
+            `  "coreItems": ["PR-01", "GE-02"]\n` +
             `}\n\n` +
             `# 制約\n` +
             `- summaryBulletsは3〜5個\n` +
@@ -123,7 +125,10 @@ export async function POST(req: Request) {
             `- issueCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
             `- competencyCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
             `- issueCategoriesは「普段の教育の困り事」に対応する内容に限定\n` +
-            `- competencyCategoriesは「重要な資質・能力」に対応する内容に限定\n\n` +
+            `- competencyCategoriesは「重要な資質・能力」に対応する内容に限定\n` +
+            `- coreItemsは会話内容に関連するモデル・コア・カリキュラムの項目コード（0〜10個程度）\n` +
+            `- 具体的な項目コード例: PR-01（医師の責務）, GE-01（全人的視点）, GE-02（地域の視点）, LL-01（生涯学習）, RE-03（研究の実施）等\n` +
+            `- 会話で直接言及されたものや、内容から推察される関連項目を含める\n\n` +
             `# 会話履歴\n` +
             `${transcript}`
         }
@@ -145,7 +150,8 @@ export async function POST(req: Request) {
       summaryBullets: summary.data.summaryBullets,
       keywordGroups: summary.data.keywordGroups,
       issueCategories: summary.data.issueCategories,
-      competencyCategories: summary.data.competencyCategories
+      competencyCategories: summary.data.competencyCategories,
+      coreItems: summary.data.coreItems ?? []
     };
 
     const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
@@ -157,7 +163,8 @@ export async function POST(req: Request) {
       summary_bullets: payload.summaryBullets,
       keyword_groups: payload.keywordGroups,
       issue_categories: payload.issueCategories,
-      competency_categories: payload.competencyCategories
+      competency_categories: payload.competencyCategories,
+      core_items: payload.coreItems
     };
 
     const supabaseTable = (supabase as unknown as {
@@ -174,7 +181,9 @@ export async function POST(req: Request) {
       const errorMessage = String(insertError?.message ?? "");
       const isMissingColumn =
         errorMessage.includes("column") &&
-        (errorMessage.includes("issue_categories") || errorMessage.includes("competency_categories"));
+        (errorMessage.includes("issue_categories") ||
+         errorMessage.includes("competency_categories") ||
+         errorMessage.includes("core_items"));
 
       if (isMissingColumn) {
         const fallbackPayload = {
@@ -201,6 +210,7 @@ export async function POST(req: Request) {
       keywordGroups: payload.keywordGroups,
       issueCategories: payload.issueCategories,
       competencyCategories: payload.competencyCategories,
+      coreItems: payload.coreItems,
       messages: body.messages
     }));
 
