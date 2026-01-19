@@ -82,9 +82,12 @@ export default function SurveyPage({
   const [summaryAttempted, setSummaryAttempted] = useState(false);
   const [logs, setLogs] = useState<SurveyLog[]>([]);
   const [sidePanelFocus, setSidePanelFocus] = useState(false);
+  const [showExtendConfirmModal, setShowExtendConfirmModal] = useState(false);
+  const [extendConfirmCountdown, setExtendConfirmCountdown] = useState(60);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const messagesRef = useRef<Message[]>([]);
   const sidePanelRef = useRef<HTMLDivElement | null>(null);
+  const extendConfirmTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Determine if we're in closed question phase
   const isClosedQuestionPhase = questionCount < CLOSED_QUESTION_COUNT;
@@ -355,10 +358,57 @@ export default function SurveyPage({
     }
   }, [isEnded, summaryRequested, summaryAttempted, summarizeConversation, focusSidePanel]);
 
-  const handleEnd = async () => {
+  // Countdown timer for extend confirm modal (1 minute)
+  useEffect(() => {
+    if (showExtendConfirmModal) {
+      extendConfirmTimerRef.current = setInterval(() => {
+        setExtendConfirmCountdown((prev) => {
+          if (prev <= 1) {
+            // Time's up, auto proceed to summarize
+            if (extendConfirmTimerRef.current) {
+              clearInterval(extendConfirmTimerRef.current);
+            }
+            // Automatically skip extension and summarize
+            handleSkipExtend();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (extendConfirmTimerRef.current) {
+        clearInterval(extendConfirmTimerRef.current);
+      }
+    };
+  }, [showExtendConfirmModal]);
+
+  const handleEnd = () => {
     if (isEnded || isSummarizing) return;
+    // Show extend confirm modal instead of directly ending
+    setShowExtendConfirmModal(true);
+    setExtendConfirmCountdown(60);
+  };
+
+  const handleExtendFromModal = () => {
+    // Add 3 minutes and continue
+    setRemainingTime((prev) => prev + EXTENSION_SECONDS);
+    setTotalExtendedTime((prev) => prev + EXTENSION_SECONDS);
+    setIsExpired(false);
+    setShowExtendConfirmModal(false);
+    if (extendConfirmTimerRef.current) {
+      clearInterval(extendConfirmTimerRef.current);
+    }
+  };
+
+  const handleSkipExtend = async () => {
+    // Skip extension and proceed to summarize
+    setShowExtendConfirmModal(false);
     setIsEnded(true);
     focusSidePanel();
+    if (extendConfirmTimerRef.current) {
+      clearInterval(extendConfirmTimerRef.current);
+    }
     await summarizeConversation();
   };
 
@@ -882,6 +932,51 @@ export default function SurveyPage({
       </div>
 
       <div style={{ paddingBottom: 40 }} />
+
+      {/* Extend Confirm Modal */}
+      {showExtendConfirmModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "#fff",
+            borderRadius: "16px",
+            padding: "24px",
+            maxWidth: "400px",
+            width: "90%",
+            boxShadow: "0 24px 60px rgba(35, 27, 32, 0.2)"
+          }}>
+            <h3 style={{ margin: "0 0 16px 0", textAlign: "center", fontSize: "1.2rem" }}>
+              もう少し続けますか？
+            </h3>
+            <p style={{ margin: "0 0 16px 0", textAlign: "center", color: "#666" }}>
+              あと{Math.ceil(extendConfirmCountdown / 60)}分で自動的に終了します
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={handleSkipExtend}
+                className="btn btn-ghost"
+                style={{ padding: "12px 20px", borderColor: "var(--accent)" }}
+              >
+                終了してサマライズ
+              </button>
+              <button
+                onClick={handleExtendFromModal}
+                className="btn btn-primary"
+                style={{ padding: "12px 20px" }}
+              >
+                もう少し続ける (+3分)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main >
   );
 }
