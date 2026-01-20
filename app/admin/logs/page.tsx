@@ -31,6 +31,14 @@ function AdminLogsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
+    // Reclassification state
+    const [showReclassifyModal, setShowReclassifyModal] = useState(false);
+    const [reclassifyPassword, setReclassifyPassword] = useState("");
+    const [reclassifyStatus, setReclassifyStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+    const [reclassifyMessage, setReclassifyMessage] = useState("");
+    const [reclassifyResult, setReclassifyResult] = useState<{ processed: number; updated: number; failed: number } | null>(null);
+    const [reclassifyErrors, setReclassifyErrors] = useState<Array<{ id: string; error: string }> | null>(null);
+
     const issueFilter = searchParams.get("issue");
     const competencyFilter = searchParams.get("competency");
     const coreItemFilter = searchParams.get("coreItem");
@@ -125,12 +133,79 @@ function AdminLogsContent() {
         }
     };
 
+    const handleReclassifyIssues = async () => {
+        setReclassifyStatus("processing");
+        setReclassifyMessage("処理中...");
+        setReclassifyErrors(null);
+
+        try {
+            const res = await fetch("/api/admin/reclassify-issues", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: reclassifyPassword })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "困り事の再分類に失敗しました");
+            }
+
+            setReclassifyStatus("success");
+            setReclassifyMessage(data.message || "処理完了");
+            setReclassifyResult({ processed: data.processed, updated: data.updated, failed: data.failed });
+            setReclassifyErrors(data.errors || null);
+
+            // Refresh logs after successful reclassification
+            fetch("/api/admin/logs")
+                .then(res => res.json())
+                .then(data => setLogs(data))
+                .catch(console.error);
+
+        } catch (err) {
+            setReclassifyStatus("error");
+            setReclassifyMessage(err instanceof Error ? err.message : "エラーが発生しました");
+        }
+    };
+
+    // Count logs with unclassified issues
+    const unclassifiedIssuesCount = logs.filter((log: SurveyLog) => {
+        const issues = log.issue_categories;
+        return !issues ||
+               !Array.isArray(issues) ||
+               issues.length === 0 ||
+               issues.some((cat: any) => !cat.category || !cat.items || cat.items.length === 0);
+    }).length;
+
     return (
         <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
                 <h2 style={{ margin: 0 }}>回答一覧 ({filteredLogs.length}件表示)</h2>
 
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button
+                        onClick={() => {
+                            setShowReclassifyModal(true);
+                            setReclassifyStatus("idle");
+                            setReclassifyMessage("");
+                            setReclassifyResult(null);
+                            setReclassifyErrors(null);
+                            setReclassifyPassword("");
+                        }}
+                        className="btn"
+                        style={{
+                            padding: "8px 16px",
+                            background: unclassifiedIssuesCount > 0 ? "#e67e22" : "#95a5a6",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 6,
+                            fontWeight: 600,
+                            cursor: "pointer"
+                        }}
+                    >
+                        困り事を再分類 {unclassifiedIssuesCount > 0 && `(${unclassifiedIssuesCount}件)`}
+                    </button>
+
                     <button onClick={handleDownloadCsv} className="btn btn-primary" style={{ padding: "8px 16px" }}>
                         CSV出力 (UTF-8 BOM)
                     </button>
@@ -314,6 +389,202 @@ function AdminLogsContent() {
                                 ))}
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Reclassify Issues Modal */}
+            {showReclassifyModal && (
+                <div
+                    style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: "rgba(0, 0, 0, 0.5)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 1000,
+                        padding: "20px"
+                    }}
+                    onClick={() => setShowReclassifyModal(false)}
+                >
+                    <div
+                        className="hero-card"
+                        style={{
+                            maxWidth: 500,
+                            width: "90%",
+                            maxHeight: "80vh",
+                            overflow: "auto"
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className="panel-title" style={{ marginBottom: 16 }}>困り事の再分類</h3>
+
+                        {reclassifyStatus === "idle" && (
+                            <div>
+                                <p style={{ marginBottom: 16 }}>
+                                    未分類の「困り事」がある回答ログ（最大1000件）をGemini 3で再分析し、困り事を抽出・分類します。<br />
+                                    処理には数分かかる場合があります。
+                                </p>
+                                {unclassifiedIssuesCount > 0 && (
+                                    <div style={{
+                                        padding: 12,
+                                        background: "#fff3cd",
+                                        borderRadius: 6,
+                                        marginBottom: 16
+                                    }}>
+                                        未分類のログ: <strong>{unclassifiedIssuesCount}件</strong>
+                                    </div>
+                                )}
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                                        管理者パスワード
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={reclassifyPassword}
+                                        onChange={(e) => setReclassifyPassword(e.target.value)}
+                                        placeholder="パスワードを入力"
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px",
+                                            border: "1px solid #ddd",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            boxSizing: "border-box"
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ display: "flex", gap: 12 }}>
+                                    <button
+                                        onClick={handleReclassifyIssues}
+                                        disabled={!reclassifyPassword}
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 20px",
+                                            background: reclassifyPassword ? "#e67e22" : "#ccc",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            fontWeight: 600,
+                                            cursor: reclassifyPassword ? "pointer" : "not-allowed"
+                                        }}
+                                    >
+                                        実行
+                                    </button>
+                                    <button
+                                        onClick={() => setShowReclassifyModal(false)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 20px",
+                                            background: "white",
+                                            color: "var(--text-main)",
+                                            border: "1px solid #ddd",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            cursor: "pointer"
+                                        }}
+                                    >
+                                        キャンセル
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {reclassifyStatus === "processing" && (
+                            <div style={{ textAlign: "center", padding: 40 }}>
+                                <div className="blink" style={{ fontSize: "1.2rem", marginBottom: 16 }}>
+                                    処理中...
+                                </div>
+                                <p className="note">
+                                    回答ログを分析中です。しばらくお待ちください。
+                                </p>
+                            </div>
+                        )}
+
+                        {(reclassifyStatus === "success" || reclassifyStatus === "error") && (
+                            <div>
+                                <div style={{
+                                    padding: 16,
+                                    background: reclassifyStatus === "success" ? "#d4edda" : "#f8d7da",
+                                    borderRadius: 6,
+                                    marginBottom: 16
+                                }}>
+                                    {reclassifyMessage}
+                                </div>
+
+                                {reclassifyResult && (
+                                    <div style={{
+                                        padding: 16,
+                                        background: "#f8f9fa",
+                                        borderRadius: 6,
+                                        marginBottom: 16
+                                    }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                            <span>処理件数:</span>
+                                            <span style={{ fontWeight: 700 }}>{reclassifyResult.processed}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                            <span>更新成功:</span>
+                                            <span style={{ fontWeight: 700, color: "#28a745" }}>{reclassifyResult.updated}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span>失敗:</span>
+                                            <span style={{ fontWeight: 700, color: "#dc3545" }}>{reclassifyResult.failed}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {reclassifyErrors && reclassifyErrors.length > 0 && (
+                                    <div style={{
+                                        padding: 16,
+                                        background: "#fff3cd",
+                                        borderRadius: 6,
+                                        marginBottom: 16,
+                                        maxHeight: 200,
+                                        overflow: "auto"
+                                    }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 8 }}>エラー詳細:</div>
+                                        {reclassifyErrors.map((err, idx) => (
+                                            <div key={idx} style={{
+                                                fontSize: "0.85rem",
+                                                marginBottom: 8,
+                                                paddingBottom: 8,
+                                                borderBottom: idx < reclassifyErrors.length - 1 ? "1px solid #eee" : "none"
+                                            }}>
+                                                <div style={{ fontFamily: "monospace", color: "#666" }}>
+                                                    ID: {err.id.slice(0, 8)}...
+                                                </div>
+                                                <div style={{ marginTop: 4, wordBreak: "break-word" }}>
+                                                    {err.error}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => setShowReclassifyModal(false)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "10px 20px",
+                                        background: "#e67e22",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: 6,
+                                        fontSize: "1rem",
+                                        fontWeight: 600,
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
