@@ -58,6 +58,11 @@ export function WordCloudSection() {
         return res.json();
       })
       .then((data: WordCloudData) => {
+        console.log("[WordCloudSection] Fetched data:", {
+          wordsCount: data?.words?.length ?? 0,
+          totalResponses: data?.metadata?.totalResponses ?? 0,
+          sampleWords: data?.words?.slice(0, 3) ?? []
+        });
         setData(data);
         setLoading(false);
       })

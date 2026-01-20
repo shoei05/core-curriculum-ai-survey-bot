@@ -74,8 +74,15 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     return true;
   });
 
+  console.log("[WordCloudChart] Validation results:", {
+    inputCount: words.length,
+    validCount: validWords.length,
+    invalidCount: words.length - validWords.length,
+    sampleValid: validWords.slice(0, 3)
+  });
+
   if (validWords.length === 0) {
-    console.warn("[WordCloudChart] No valid words after filtering");
+    console.warn("[WordCloudChart] No valid words after filtering. Original words:", words.slice(0, 5));
     return (
       <div
         style={{
@@ -86,7 +93,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
           color: "var(--muted)",
         }}
       >
-        表示するデータがありません
+        表示するデータがありません（フィルタ条件を緩めてください）
       </div>
     );
   }
@@ -150,6 +157,58 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     [getWordColor, getWordTooltip, onWordClick]
   );
 
+  // Temporary fallback: simple tag cloud instead of react-wordcloud
+  // This avoids the internal array access error in react-wordcloud
+  const renderSimpleTagCloud = () => {
+    const sorted = [...validWords].sort((a, b) => b.value - a.value);
+    const max = Math.max(...validWords.map(w => w.value));
+    const min = Math.min(...validWords.map(w => w.value));
+
+    return (
+      <div style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "12px",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "20px",
+        minHeight: "300px"
+      }}>
+        {sorted.map((word, idx) => {
+          const normalized = max === min ? 0.5 : (word.value - min) / (max - min);
+          const fontSize = 12 + normalized * 36; // 12px to 48px
+          const color = colorScale(normalized);
+
+          return (
+            <span
+              key={`${word.text}-${idx}`}
+              style={{
+                fontSize: `${fontSize}px`,
+                color: color,
+                cursor: onWordClick ? "pointer" : "default",
+                fontWeight: 600,
+                transition: "transform 0.2s, opacity 0.2s",
+                userSelect: "none"
+              }}
+              onClick={() => onWordClick && onWordClick(word.text, word.value)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.1)";
+                e.currentTarget.style.opacity = "0.8";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.opacity = "1";
+              }}
+              title={`${word.text}: ${word.value}回`}
+            >
+              {word.text}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <ErrorBoundary
       fallback={
@@ -166,9 +225,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
         </div>
       }
     >
-      <div style={{ width: "100%", height: "300px" }}>
-        <Wordcloud words={validWords} options={options} callbacks={callbacks} />
-      </div>
+      {renderSimpleTagCloud()}
     </ErrorBoundary>
   );
 }
