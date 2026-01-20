@@ -30,6 +30,7 @@ export function WordCloudSection() {
   const [timeRange, setTimeRange] = useState<WordCloudQueryParams["timeRange"]>("all");
   const [minFrequency, setMinFrequency] = useState(2);
   const [maxWords, setMaxWords] = useState(50);
+  const [source, setSource] = useState<"user_messages" | "keyword_groups">("user_messages");
 
   // Fetch word cloud data
   const fetchData = useCallback(() => {
@@ -46,6 +47,7 @@ export function WordCloudSection() {
       timeRange: timeRange || "all",
       minFrequency: minFrequency.toString(),
       maxWords: maxWords.toString(),
+      source: source,
     });
 
     fetch(`/api/admin/wordcloud?${params.toString()}`, {
@@ -74,7 +76,7 @@ export function WordCloudSection() {
         setError("データの取得に失敗しました");
         setLoading(false);
       });
-  }, [timeRange, minFrequency, maxWords]);
+  }, [timeRange, minFrequency, maxWords, source]);
 
   // Initial fetch and refetch on filter changes
   useEffect(() => {
@@ -176,6 +178,25 @@ export function WordCloudSection() {
               width: "80px",
             }}
           />
+        </div>
+
+        {/* Source Filter */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: "0.85rem", fontWeight: 600 }}>データソース</label>
+          <select
+            value={source}
+            onChange={(e) => setSource(e.target.value as "user_messages" | "keyword_groups")}
+            style={{
+              padding: "8px 12px",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: "0.9rem",
+              background: "var(--card)",
+            }}
+          >
+            <option value="user_messages">ユーザー回答</option>
+            <option value="keyword_groups">AI抽出キーワード</option>
+          </select>
         </div>
 
         {/* Apply Button */}

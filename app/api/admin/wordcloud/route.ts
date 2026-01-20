@@ -2,18 +2,20 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { extractKeywords, filterByFrequency, getDateRange } from "@/lib/wordcloud/processor";
 import { processToWordCloud } from "@/lib/wordcloud/aggregator";
+import { extractUserMessages, simpleTokenize } from "@/lib/wordcloud/text-extractor";
 import type { WordCloudQueryParams } from "@/types/admin";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/admin/wordcloud
- * Returns word cloud data from survey_logs keyword_groups
+ * Returns word cloud data from survey_logs
  *
  * Query parameters:
  * - timeRange: '7d' | '30d' | '90d' | 'all' (default: 'all')
  * - minFrequency: minimum keyword frequency (default: 2)
  * - maxWords: maximum number of words to return (default: 50)
+ * - source: 'keyword_groups' | 'user_messages' (default: 'user_messages')
  */
 export async function GET(req: Request) {
   const supabase = getSupabaseAdmin();
@@ -29,6 +31,7 @@ export async function GET(req: Request) {
     const timeRange = (url.searchParams.get("timeRange") as WordCloudQueryParams["timeRange"]) || "all";
     const minFrequency = parseInt(url.searchParams.get("minFrequency") || "2", 10);
     const maxWords = parseInt(url.searchParams.get("maxWords") || "50", 10);
+    const source = url.searchParams.get("source") || "user_messages"; // default to user messages
 
     // Calculate date range filter
     let dateFilter: string | undefined;
@@ -40,9 +43,13 @@ export async function GET(req: Request) {
     }
 
     // Fetch logs from Supabase
+    const selectFields = source === "keyword_groups"
+      ? "keyword_groups, created_at"
+      : "messages, created_at";
+
     let query = supabase
       .from(tableName)
-      .select("keyword_groups, created_at")
+      .select(selectFields)
       .order("created_at", { ascending: false });
 
     // Apply date filter if specified
@@ -67,8 +74,16 @@ export async function GET(req: Request) {
       });
     }
 
-    // Extract keywords from logs
-    const keywords = extractKeywords(logs);
+    // Extract keywords based on source
+    let keywords: string[];
+    if (source === "user_messages") {
+      // Extract from user messages
+      const userText = extractUserMessages(logs);
+      keywords = simpleTokenize(userText);
+    } else {
+      // Extract from keyword_groups (existing behavior)
+      keywords = extractKeywords(logs);
+    }
 
     // Filter by minimum frequency
     const filteredKeywords = filterByFrequency(keywords, minFrequency);
