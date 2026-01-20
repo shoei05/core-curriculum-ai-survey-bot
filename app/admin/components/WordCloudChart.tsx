@@ -4,6 +4,7 @@ import React, { useMemo, useCallback, useState, useEffect } from "react";
 import Wordcloud from "react-wordcloud";
 import type { WordCloudWord } from "@/types/admin";
 import { scaleLinear } from "d3-scale";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 // Word cloud options
 const options = {
@@ -13,8 +14,8 @@ const options = {
   fontStyle: "normal",
   fontWeight: "normal",
   padding: 5,
-  rotations: 1,
-  rotationAngles: [0, 0] as [number, number],
+  rotations: 2,
+  rotationAngles: [-90, 90] as [number, number],
   scale: "sqrt" as const,
   spiral: "archimedean" as const,
   transitionDuration: 0,
@@ -56,6 +57,40 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     );
   }
 
+  // Validate each word has required properties
+  const validWords = words.filter((word) => {
+    if (!word || typeof word !== 'object') {
+      console.warn("[WordCloudChart] Invalid word object:", word);
+      return false;
+    }
+    if (typeof word.text !== 'string' || !word.text.trim()) {
+      console.warn("[WordCloudChart] Invalid word.text:", word);
+      return false;
+    }
+    if (typeof word.value !== 'number' || isNaN(word.value) || word.value <= 0) {
+      console.warn("[WordCloudChart] Invalid word.value:", word);
+      return false;
+    }
+    return true;
+  });
+
+  if (validWords.length === 0) {
+    console.warn("[WordCloudChart] No valid words after filtering");
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "300px",
+          color: "var(--muted)",
+        }}
+      >
+        表示するデータがありません
+      </div>
+    );
+  }
+
   // State for resolved CSS variable colors (with fallback values)
   const [accentColor, setAccentColor] = useState<string>("#c5487b");
   const [accentDeepColor, setAccentDeepColor] = useState<string>("#a23a63");
@@ -80,14 +115,11 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
   // Create callbacks with memoized values
   const getWordColor = useCallback(
     (word: WordCloudWord) => {
-      if (!words || words.length === 0) {
+      if (!validWords || validWords.length === 0) {
         return accentColor;
       }
       try {
-        const values = words.map((w) => w?.value ?? 0).filter((v) => typeof v === 'number' && !isNaN(v));
-        if (values.length === 0) {
-          return accentColor;
-        }
+        const values = validWords.map((w) => w.value);
         const max = Math.max(...values);
         const min = Math.min(...values);
         const wordValue = word?.value ?? 0;
@@ -98,7 +130,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
         return accentColor;
       }
     },
-    [words, colorScale, accentColor]
+    [validWords, colorScale, accentColor]
   );
 
   const getWordTooltip = useCallback((word: WordCloudWord) => {
@@ -118,25 +150,25 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     [getWordColor, getWordTooltip, onWordClick]
   );
 
-  if (words.length === 0) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "300px",
-          color: "var(--muted)",
-        }}
-      >
-        表示するデータがありません
-      </div>
-    );
-  }
-
   return (
-    <div style={{ width: "100%", height: "300px" }}>
-      <Wordcloud words={words} options={options} callbacks={callbacks} />
-    </div>
+    <ErrorBoundary
+      fallback={
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "300px",
+            color: "var(--muted)",
+          }}
+        >
+          ワードクラウドの表示中にエラーが発生しました
+        </div>
+      }
+    >
+      <div style={{ width: "100%", height: "300px" }}>
+        <Wordcloud words={validWords} options={options} callbacks={callbacks} />
+      </div>
+    </ErrorBoundary>
   );
 }
