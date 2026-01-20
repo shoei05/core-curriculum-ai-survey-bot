@@ -44,8 +44,15 @@ export async function POST(req: Request) {
 
     // Verify password
     const adminPassword = process.env.ADMIN_PASSWORD;
-    if (!adminPassword || password !== adminPassword) {
-      return NextResponse.json({ error: "認証に失敗しました" }, { status: 401 });
+    if (!adminPassword) {
+      console.error("ADMIN_PASSWORD environment variable is not set");
+      return NextResponse.json({ error: "サーバー設定エラー: 環境変数が設定されていません" }, { status: 500 });
+    }
+    if (!password) {
+      return NextResponse.json({ error: "パスワードが入力されていません" }, { status: 401 });
+    }
+    if (password !== adminPassword) {
+      return NextResponse.json({ error: "パスワードが正しくありません" }, { status: 401 });
     }
 
     const supabase = getSupabaseAdmin();
