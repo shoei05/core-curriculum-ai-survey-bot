@@ -566,7 +566,7 @@ export default function SurveyPage({
       </div>
 
       <div className="consent-timer-notice">
-        <p style={{ fontWeight: 600 }}>⏰ 制限時間：5分間（できるまで5分間お話しください）</p>
+        <p style={{ fontWeight: 600 }}>⏰ 制限時間：5分間（できるだけ5分間お話しください）</p>
         <p style={{ fontSize: 14, color: "#666" }}>※時間終了後、延長を選択いただけます</p>
       </div>
 
