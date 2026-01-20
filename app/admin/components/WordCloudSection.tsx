@@ -235,7 +235,7 @@ export function WordCloudSection() {
         <div className="blink" style={{ textAlign: "center", padding: 40 }}>
           読み込み中...
         </div>
-      ) : data ? (
+      ) : data && Array.isArray(data.words) ? (
         <WordCloudChart words={data.words} onWordClick={handleWordClick} />
       ) : null}
 

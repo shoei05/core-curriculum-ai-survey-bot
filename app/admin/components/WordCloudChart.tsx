@@ -13,8 +13,8 @@ const options = {
   fontStyle: "normal",
   fontWeight: "normal",
   padding: 5,
-  rotations: 0,
-  rotationAngles: [0, 90] as [number, number],
+  rotations: 1,
+  rotationAngles: [0, 0] as [number, number],
   scale: "sqrt" as const,
   spiral: "archimedean" as const,
   transitionDuration: 0,
@@ -38,6 +38,24 @@ interface WordCloudChartProps {
  * Displays a word cloud visualization using react-wordcloud
  */
 export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
+  // Validate words prop
+  if (!words || !Array.isArray(words)) {
+    console.error("[WordCloudChart] Invalid words prop:", words);
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "300px",
+          color: "var(--muted)",
+        }}
+      >
+        データ形式が不正です
+      </div>
+    );
+  }
+
   // State for resolved CSS variable colors (with fallback values)
   const [accentColor, setAccentColor] = useState<string>("#c5487b");
   const [accentDeepColor, setAccentDeepColor] = useState<string>("#a23a63");
@@ -65,10 +83,20 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
       if (!words || words.length === 0) {
         return accentColor;
       }
-      const max = Math.max(...words.map((w) => w.value));
-      const min = Math.min(...words.map((w) => w.value));
-      const normalized = max === min ? 0.5 : (word.value - min) / (max - min);
-      return colorScale(normalized);
+      try {
+        const values = words.map((w) => w?.value ?? 0).filter((v) => typeof v === 'number' && !isNaN(v));
+        if (values.length === 0) {
+          return accentColor;
+        }
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const wordValue = word?.value ?? 0;
+        const normalized = max === min ? 0.5 : (wordValue - min) / (max - min);
+        return colorScale(normalized);
+      } catch (err) {
+        console.error("[WordCloudChart] Error in getWordColor:", err);
+        return accentColor;
+      }
     },
     [words, colorScale, accentColor]
   );
