@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, useState, useEffect } from "react";
 import Wordcloud from "react-wordcloud";
 import type { WordCloudWord } from "@/types/admin";
 import { scaleLinear } from "d3-scale";
@@ -21,10 +21,10 @@ const options = {
 };
 
 // Color scale for words
-const createColorScale = () => {
+const createColorScale = (startColor: string, endColor: string) => {
   return scaleLinear<string>()
     .domain([0, 1])
-    .range(["var(--accent)", "var(--accent-deep)"])
+    .range([startColor, endColor])
     .clamp(true);
 };
 
@@ -38,7 +38,26 @@ interface WordCloudChartProps {
  * Displays a word cloud visualization using react-wordcloud
  */
 export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
-  const colorScale = useMemo(() => createColorScale(), []);
+  // State for resolved CSS variable colors (with fallback values)
+  const [accentColor, setAccentColor] = useState<string>("#c5487b");
+  const [accentDeepColor, setAccentDeepColor] = useState<string>("#a23a63");
+
+  // Resolve CSS variables to actual color values on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const rootStyles = getComputedStyle(document.documentElement);
+      const accent = rootStyles.getPropertyValue('--accent').trim();
+      const accentDeep = rootStyles.getPropertyValue('--accent-deep').trim();
+
+      if (accent) setAccentColor(accent);
+      if (accentDeep) setAccentDeepColor(accentDeep);
+    }
+  }, []);
+
+  const colorScale = useMemo(
+    () => createColorScale(accentColor, accentDeepColor),
+    [accentColor, accentDeepColor]
+  );
 
   // Create callbacks with memoized values
   const getWordColor = useCallback(
