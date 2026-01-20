@@ -13,8 +13,8 @@ export const runtime = "nodejs";
  *
  * Query parameters:
  * - timeRange: '7d' | '30d' | '90d' | 'all' (default: 'all')
- * - minFrequency: minimum keyword frequency (default: 2)
- * - maxWords: maximum number of words to return (default: 50)
+ * - minFrequency: minimum keyword frequency (default: 1)
+ * - maxWords: maximum number of words to return (default: 100)
  * - source: 'keyword_groups' | 'user_messages' (default: 'user_messages')
  */
 export async function GET(req: Request) {
@@ -29,8 +29,8 @@ export async function GET(req: Request) {
     // Parse query parameters
     const url = new URL(req.url);
     const timeRange = (url.searchParams.get("timeRange") as WordCloudQueryParams["timeRange"]) || "all";
-    const minFrequency = parseInt(url.searchParams.get("minFrequency") || "2", 10);
-    const maxWords = parseInt(url.searchParams.get("maxWords") || "50", 10);
+    const minFrequency = parseInt(url.searchParams.get("minFrequency") || "1", 10);
+    const maxWords = parseInt(url.searchParams.get("maxWords") || "100", 10);
     const source = url.searchParams.get("source") || "user_messages"; // default to user messages
 
     // Calculate date range filter

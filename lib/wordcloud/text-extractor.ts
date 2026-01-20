@@ -75,20 +75,52 @@ export async function tokenizeJapanese(text: string): Promise<string[]> {
     const tokens = tokenizer.tokenize(text);
 
     const words: string[] = [];
-    for (const token of tokens) {
-      // Extract only meaningful words
-      // pos: 名詞, 動詞, 形容詞, etc.
-      const pos = token.pos;
+    const debugInfo: any[] = [];
 
-      // Include nouns, verbs (base form), adjectives
-      if (pos === "名詞" && token.surface_form.length >= 2 && !isStopWord(token.surface_form)) {
-        words.push(token.surface_form);
-      } else if (pos === "動詞" && token.basic_form && token.basic_form.length >= 2 && !isStopWord(token.basic_form)) {
-        words.push(token.basic_form);
-      } else if (pos === "形容詞" && token.basic_form && token.basic_form.length >= 2 && !isStopWord(token.basic_form)) {
-        words.push(token.basic_form);
+    for (const token of tokens) {
+      const pos = token.pos;
+      const pos_detail_1 = token.pos_detail_1;
+      const surface = token.surface_form;
+      const basic = token.basic_form;
+
+      // Debug: log first 10 tokens
+      if (debugInfo.length < 10) {
+        debugInfo.push({ surface, basic, pos, pos_detail_1 });
+      }
+
+      // More permissive noun filtering
+      if (pos === "名詞") {
+        // Include: 一般名詞, 固有名詞, サ変名詞, 形容動詞語幹
+        // Exclude: 非自立名詞, 代名詞, 数詞
+        if (
+          pos_detail_1 !== "非自立" &&
+          pos_detail_1 !== "代名詞" &&
+          pos_detail_1 !== "数" &&
+          surface.length >= 2 &&
+          !isStopWord(surface)
+        ) {
+          words.push(surface);
+        }
+      }
+      // Verbs: use base form
+      else if (pos === "動詞" && basic && basic.length >= 2 && !isStopWord(basic)) {
+        words.push(basic);
+      }
+      // Adjectives: use base form
+      else if (pos === "形容詞" && basic && basic.length >= 2 && !isStopWord(basic)) {
+        words.push(basic);
+      }
+      // Adjectival nouns (形容動詞)
+      else if (pos === "形容動詞" && surface.length >= 2 && !isStopWord(surface)) {
+        words.push(surface);
       }
     }
+
+    // Log sample tokens for debugging
+    if (debugInfo.length > 0) {
+      console.log("[Kuromoji] Sample tokens:", debugInfo);
+    }
+    console.log(`[Kuromoji] Extracted ${words.length} words from ${tokens.length} tokens`);
 
     return words;
   } catch (error) {
@@ -130,15 +162,22 @@ export function simpleTokenize(text: string): string[] {
 }
 
 /**
- * Japanese stop words (particles, auxiliary verbs, common words to exclude)
+ * Japanese stop words (minimal set - only particles, pronouns, and meaningless words)
  */
 const STOP_WORDS = new Set([
-  // Particles and common suffixes
-  "の", "に", "は", "を", "た", "が", "で", "て", "と", "し", "れ", "さ", "ある", "いる", "する", "です", "ます", "ました", "ません", "ですね", "ますね", "でしょう", "だろう", "でき", "できる", "できた", "これ", "それ", "あれ", "この", "その", "あの", "ここ", "そこ", "あそこ", "こう", "そう", "ああ", "どう", "して", "くれ", "やる", "もの", "ので", "から", "ため", "ない", "なら", "なく", "ても", "ては", "では", "より", "まで", "だけ", "ほど", "など", "とか", "ばかり", "まま", "ながら", "ところ", "こと", "ところが", "ものの", "ものを", "ことに", "ことは", "ことが", "ことを", "こんな", "そんな", "あんな", "どんな", "いう", "いった", "いって", "いない", "いく", "いけ", "いける", "なる", "なり", "なっ", "され", "れる", "られ", "よう", "みたい", "そう", "らしい", "ちゃう", "じゃう",
-  // Common verbs/adjectives (generic)
-  "思う", "思い", "思っ", "思わ", "考える", "感じる", "見る", "見て", "見た", "聞く", "聞い", "聞こ", "話す", "話し", "言う", "言っ", "言わ", "ある", "ない", "いい", "よい", "悪い", "多い", "少ない", "大きい", "小さい",
-  // English
-  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from", "as", "is", "was", "are", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "should", "could", "may", "might", "must", "can", "it", "this", "that", "these", "those", "i", "you", "he", "she", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "her", "our", "their",
+  // Minimal particles and suffixes
+  "です", "ます", "ました", "ません", "ですね", "ますね",
+  // Pronouns and demonstratives
+  "これ", "それ", "あれ", "この", "その", "あの", "ここ", "そこ", "あそこ", "どこ",
+  "こう", "そう", "ああ", "どう",
+  // Generic nouns (meaningless)
+  "こと", "もの", "ところ", "よう", "ため", "はず", "わけ",
+  // Common responses
+  "はい", "いいえ", "うん", "ええ",
+  // English stop words
+  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+  "is", "was", "are", "be", "have", "has", "had", "do", "does", "did",
+  "it", "this", "that", "these", "those", "i", "you", "he", "she", "we", "they",
 ]);
 
 /**

@@ -28,8 +28,8 @@ export function WordCloudSection() {
 
   // Filter states
   const [timeRange, setTimeRange] = useState<WordCloudQueryParams["timeRange"]>("all");
-  const [minFrequency, setMinFrequency] = useState(2);
-  const [maxWords, setMaxWords] = useState(50);
+  const [minFrequency, setMinFrequency] = useState(1); // Changed from 2 to 1
+  const [maxWords, setMaxWords] = useState(100); // Changed from 50 to 100
   const [source, setSource] = useState<"user_messages" | "keyword_groups">("user_messages");
 
   // Reclassify state
