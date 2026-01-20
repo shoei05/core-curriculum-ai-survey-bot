@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { WordCloudSection } from "./components/WordCloudSection";
+import { formatCoreItem } from "@/lib/core-curriculum-items";
 
 interface Stats {
     totalCount: number;
@@ -205,7 +206,7 @@ export default function AdminDashboard() {
                             title={`${label} でフィルタリング`}
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: "0.9rem" }}>
-                                <span>{label}</span>
+                                <span>{type === "coreItem" ? formatCoreItem(label) : label}</span>
                                 <span style={{ fontWeight: 700 }}>{value}</span>
                             </div>
                             <div style={{ height: 12, background: "#f0f0f0", borderRadius: 6, overflow: "hidden" }}>

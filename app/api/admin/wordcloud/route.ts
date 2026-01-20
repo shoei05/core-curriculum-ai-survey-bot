@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { extractKeywords, filterByFrequency, getDateRange } from "@/lib/wordcloud/processor";
 import { processToWordCloud } from "@/lib/wordcloud/aggregator";
-import { extractUserMessages, simpleTokenize } from "@/lib/wordcloud/text-extractor";
+import { extractUserMessages, tokenizeJapanese } from "@/lib/wordcloud/text-extractor";
 import type { WordCloudQueryParams } from "@/types/admin";
 
 export const runtime = "nodejs";
@@ -77,9 +77,9 @@ export async function GET(req: Request) {
     // Extract keywords based on source
     let keywords: string[];
     if (source === "user_messages") {
-      // Extract from user messages
+      // Extract from user messages using morphological analysis
       const userText = extractUserMessages(logs);
-      keywords = simpleTokenize(userText);
+      keywords = await tokenizeJapanese(userText);
     } else {
       // Extract from keyword_groups (existing behavior)
       keywords = extractKeywords(logs);
