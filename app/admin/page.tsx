@@ -343,8 +343,18 @@ export default function AdminDashboard() {
                                     }}>
                                         <div style={{ fontWeight: 600, marginBottom: 8 }}>エラー詳細:</div>
                                         {reclassifyErrors.map((err, idx) => (
-                                            <div key={idx} style={{ fontSize: "0.85rem", marginBottom: 4, fontFamily: "monospace" }}>
-                                                ID: {err.id.slice(0, 8)}... - {err.error}
+                                            <div key={idx} style={{
+                                                fontSize: "0.85rem",
+                                                marginBottom: 8,
+                                                paddingBottom: 8,
+                                                borderBottom: idx < reclassifyErrors.length - 1 ? "1px solid #eee" : "none"
+                                            }}>
+                                                <div style={{ fontFamily: "monospace", color: "#666" }}>
+                                                    ID: {err.id.slice(0, 8)}...
+                                                </div>
+                                                <div style={{ marginTop: 4, wordBreak: "break-word" }}>
+                                                    {err.error}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

@@ -118,10 +118,14 @@ export async function POST(req: Request) {
           .eq("id", log.id);
 
         if (updateError) {
-          // Column might not exist, try adding it
+          // Column might not exist - provide detailed error
+          const errorMsg = updateError?.message || String(updateError);
+          const errorHint = updateError?.hint || "";
+          const errorDetails = errorHint ? `${errorMsg} (${errorHint})` : errorMsg;
+
           console.warn(`Failed to update log ${log.id}:`, updateError);
           failed++;
-          errors.push({ id: log.id, error: String(updateError) });
+          errors.push({ id: log.id, error: errorDetails });
         } else {
           updated++;
         }

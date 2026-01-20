@@ -1,10 +1,18 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-01-19T21:52:32.385Z",
+  "updatedAt": "2026-01-19T23:59:33.396Z",
   "skills": {
     "cursor-mem": {
       "count": 1,
       "lastUsed": "2026-01-19T21:52:32.384Z"
+    },
+    "codex-review": {
+      "count": 1,
+      "lastUsed": "2026-01-19T23:55:14.940Z"
+    },
+    "simple-review": {
+      "count": 1,
+      "lastUsed": "2026-01-19T23:59:33.394Z"
     }
   },
   "commands": {
