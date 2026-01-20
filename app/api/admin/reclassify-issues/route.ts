@@ -44,14 +44,17 @@ export async function POST(req: Request) {
 
     // Verify password
     const adminPassword = process.env.ADMIN_PASSWORD;
+    console.log("[DEBUG] ADMIN_PASSWORD exists:", !!adminPassword, "length:", adminPassword?.length);
+    console.log("[DEBUG] Input password length:", password?.length);
     if (!adminPassword) {
       console.error("ADMIN_PASSWORD environment variable is not set");
-      return NextResponse.json({ error: "サーバー設定エラー: 環境変数が設定されていません" }, { status: 500 });
+      return NextResponse.json({ error: "サーバー設定エラー: ADMIN_PASSWORDが設定されていません" }, { status: 500 });
     }
     if (!password) {
       return NextResponse.json({ error: "パスワードが入力されていません" }, { status: 401 });
     }
     if (password !== adminPassword) {
+      console.log("[DEBUG] Password mismatch");
       return NextResponse.json({ error: "パスワードが正しくありません" }, { status: 401 });
     }
 
