@@ -46,11 +46,19 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const MarkdownContent = ({ content }: { content: string }) => (
-  <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
-    {content}
-  </ReactMarkdown>
-);
+const MarkdownContent = ({ content }: { content: string }) => {
+  const normalizeMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*([^\s*])/g, '** $1')
+      .replace(/([^\s*])\*\*/g, '$1 **');
+  };
+
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+      {normalizeMarkdown(content)}
+    </ReactMarkdown>
+  );
+};
 
 export default function SurveyPage({
   params
