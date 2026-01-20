@@ -40,10 +40,19 @@ export default function AdminDashboard() {
     // Reclassification state
     const [showReclassifyModal, setShowReclassifyModal] = useState(false);
     const [reclassifyPassword, setReclassifyPassword] = useState("");
+    const [reclassifyTarget, setReclassifyTarget] = useState<"core_items" | "competency_categories" | "both">("both");
     const [reclassifyStatus, setReclassifyStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
     const [reclassifyMessage, setReclassifyMessage] = useState("");
-    const [reclassifyResult, setReclassifyResult] = useState<{ processed: number; updated: number; failed: number } | null>(null);
+    const [reclassifyResult, setReclassifyResult] = useState<{ processed: number; updated: number; failed: number; target: string } | null>(null);
     const [reclassifyErrors, setReclassifyErrors] = useState<Array<{ id: string; error: string }> | null>(null);
+
+    // Competency reclassification state (separate modal for dedicated button)
+    const [showCompetencyReclassifyModal, setShowCompetencyReclassifyModal] = useState(false);
+    const [competencyReclassifyPassword, setCompetencyReclassifyPassword] = useState("");
+    const [competencyReclassifyStatus, setCompetencyReclassifyStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+    const [competencyReclassifyMessage, setCompetencyReclassifyMessage] = useState("");
+    const [competencyReclassifyResult, setCompetencyReclassifyResult] = useState<{ processed: number; updated: number; failed: number; target: string } | null>(null);
+    const [competencyReclassifyErrors, setCompetencyReclassifyErrors] = useState<Array<{ id: string; error: string }> | null>(null);
 
     useEffect(() => {
         // 前回のリクエストをキャンセル
@@ -93,7 +102,7 @@ export default function AdminDashboard() {
             const res = await fetch("/api/admin/reclassify-core-items", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ password: reclassifyPassword })
+                body: JSON.stringify({ password: reclassifyPassword, target: reclassifyTarget })
             });
 
             const data = await res.json();
@@ -104,7 +113,7 @@ export default function AdminDashboard() {
 
             setReclassifyStatus("success");
             setReclassifyMessage(data.message || "処理完了");
-            setReclassifyResult({ processed: data.processed, updated: data.updated, failed: data.failed });
+            setReclassifyResult({ processed: data.processed, updated: data.updated, failed: data.failed, target: data.target });
             setReclassifyErrors(data.errors || null);
 
             // Refresh stats after successful reclassification
@@ -125,6 +134,50 @@ export default function AdminDashboard() {
         } catch (err) {
             setReclassifyStatus("error");
             setReclassifyMessage(err instanceof Error ? err.message : "エラーが発生しました");
+        }
+    };
+
+    const handleCompetencyReclassify = async () => {
+        setCompetencyReclassifyStatus("processing");
+        setCompetencyReclassifyMessage("処理中...");
+        setCompetencyReclassifyErrors(null);
+
+        try {
+            const res = await fetch("/api/admin/reclassify-core-items", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: competencyReclassifyPassword, target: "competency_categories" })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "資質・能力の再分類に失敗しました");
+            }
+
+            setCompetencyReclassifyStatus("success");
+            setCompetencyReclassifyMessage(data.message || "処理完了");
+            setCompetencyReclassifyResult({ processed: data.processed, updated: data.updated, failed: data.failed, target: data.target });
+            setCompetencyReclassifyErrors(data.errors || null);
+
+            // Refresh stats after successful reclassification
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            abortControllerRef.current = new AbortController();
+
+            fetch("/api/admin/stats", { signal: abortControllerRef.current.signal })
+                .then(res => res.json())
+                .then(data => {
+                    if (validateStats(data)) {
+                        setStats(data);
+                    }
+                })
+                .catch(console.error);
+
+        } catch (err) {
+            setCompetencyReclassifyStatus("error");
+            setCompetencyReclassifyMessage(err instanceof Error ? err.message : "エラーが発生しました");
         }
     };
 
@@ -173,36 +226,72 @@ export default function AdminDashboard() {
 
     return (
         <div>
-            {/* Reclassify Button */}
+            {/* Reclassify Buttons */}
             <div style={{ marginBottom: 24 }}>
-                <button
-                    onClick={() => {
-                        setShowReclassifyModal(true);
-                        setReclassifyStatus("idle");
-                        setReclassifyMessage("");
-                        setReclassifyResult(null);
-                        setReclassifyErrors(null);
-                        setReclassifyPassword("");
-                    }}
-                    style={{
-                        padding: "12px 24px",
-                        background: "var(--accent-deep)",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 8,
-                        fontSize: "1rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        transition: "opacity 0.2s"
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
-                    onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-                >
-                    コアカリ項目を再分類
-                </button>
-                <p className="note" style={{ marginTop: 8 }}>
-                    既存のアンケートログをGeminiで再分析し、コアカリ項目を抽出・更新します
-                </p>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    {/* Core Items Reclassify Button */}
+                    <button
+                        onClick={() => {
+                            setShowReclassifyModal(true);
+                            setReclassifyStatus("idle");
+                            setReclassifyMessage("");
+                            setReclassifyResult(null);
+                            setReclassifyErrors(null);
+                            setReclassifyPassword("");
+                            setReclassifyTarget("core_items");
+                        }}
+                        style={{
+                            padding: "12px 24px",
+                            background: "var(--accent-deep)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 8,
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            transition: "opacity 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+                    >
+                        コアカリ項目を再分類
+                    </button>
+
+                    {/* Competency Reclassify Button */}
+                    <button
+                        onClick={() => {
+                            setShowCompetencyReclassifyModal(true);
+                            setCompetencyReclassifyStatus("idle");
+                            setCompetencyReclassifyMessage("");
+                            setCompetencyReclassifyResult(null);
+                            setCompetencyReclassifyErrors(null);
+                            setCompetencyReclassifyPassword("");
+                        }}
+                        style={{
+                            padding: "12px 24px",
+                            background: "#48c5a9",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 8,
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            transition: "opacity 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = "0.8"}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+                    >
+                        資質・能力を再分類
+                    </button>
+                </div>
+                <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                    <p className="note" style={{ margin: 0, flex: 1, minWidth: 200 }}>
+                        既存のアンケートログをGeminiで再分析し、コアカリ項目を抽出・更新します
+                    </p>
+                    <p className="note" style={{ margin: 0, flex: 1, minWidth: 200 }}>
+                        資質・能力が空欄の既存ログを再分析し、資質・能力を抽出・更新します
+                    </p>
+                </div>
             </div>
 
             {/* Reclassify Modal */}
@@ -225,14 +314,57 @@ export default function AdminDashboard() {
                         maxHeight: "80vh",
                         overflow: "auto"
                     }}>
-                        <h3 className="panel-title" style={{ marginBottom: 16 }}>コアカリ項目の再分類</h3>
+                        <h3 className="panel-title" style={{ marginBottom: 16 }}>コアカリ項目・資質能力の再分類</h3>
 
                         {reclassifyStatus === "idle" && (
                             <div>
                                 <p style={{ marginBottom: 16 }}>
-                                    既存のアンケートログ（最大1000件）をGeminiで再分析し、コアカリ項目を抽出・更新します。<br />
+                                    既存のアンケートログ（最大1000件）をGeminiで再分析し、項目を抽出・更新します。<br />
                                     処理には数分かかる場合があります。
                                 </p>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                                        再分類対象
+                                    </label>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                            <input
+                                                type="radio"
+                                                name="reclassifyTarget"
+                                                value="both"
+                                                checked={reclassifyTarget === "both"}
+                                                onChange={() => setReclassifyTarget("both")}
+                                                style={{ cursor: "pointer" }}
+                                            />
+                                            <span>コアカリ項目 + 資質・能力（両方）</span>
+                                        </label>
+                                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                            <input
+                                                type="radio"
+                                                name="reclassifyTarget"
+                                                value="core_items"
+                                                checked={reclassifyTarget === "core_items"}
+                                                onChange={() => setReclassifyTarget("core_items")}
+                                                style={{ cursor: "pointer" }}
+                                            />
+                                            <span>コアカリ項目のみ</span>
+                                        </label>
+                                        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                            <input
+                                                type="radio"
+                                                name="reclassifyTarget"
+                                                value="competency_categories"
+                                                checked={reclassifyTarget === "competency_categories"}
+                                                onChange={() => setReclassifyTarget("competency_categories")}
+                                                style={{ cursor: "pointer" }}
+                                            />
+                                            <span>資質・能力のみ</span>
+                                        </label>
+                                    </div>
+                                    <p className="note" style={{ marginTop: 8, fontSize: "0.85rem" }}>
+                                        ※資質・能力のみを選択した場合、空または欠損しているログのみが対象になります
+                                    </p>
+                                </div>
                                 <div style={{ marginBottom: 16 }}>
                                     <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
                                         管理者パスワード
@@ -318,6 +450,11 @@ export default function AdminDashboard() {
                                         borderRadius: 6,
                                         marginBottom: 16
                                     }}>
+                                        <div style={{ marginBottom: 12, fontSize: "0.9rem", color: "#666" }}>
+                                            対象: {reclassifyResult.target === "core_items" ? "コアカリ項目のみ" :
+                                                   reclassifyResult.target === "competency_categories" ? "資質・能力のみ" :
+                                                   "コアカリ項目 + 資質・能力（両方）"}
+                                        </div>
                                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                                             <span>処理件数:</span>
                                             <span style={{ fontWeight: 700 }}>{reclassifyResult.processed}</span>
@@ -367,6 +504,187 @@ export default function AdminDashboard() {
                                         width: "100%",
                                         padding: "10px 20px",
                                         background: "var(--accent-deep)",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: 6,
+                                        fontSize: "1rem",
+                                        fontWeight: 600,
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    閉じる
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Competency Reclassify Modal */}
+            {showCompetencyReclassifyModal && (
+                <div style={{
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1000
+                }}>
+                    <div className="hero-card" style={{
+                        maxWidth: 500,
+                        width: "90%",
+                        maxHeight: "80vh",
+                        overflow: "auto"
+                    }}>
+                        <h3 className="panel-title" style={{ marginBottom: 16 }}>資質・能力の再分類</h3>
+
+                        {competencyReclassifyStatus === "idle" && (
+                            <div>
+                                <p style={{ marginBottom: 16 }}>
+                                    資質・能力が空欄または欠損している既存のアンケートログ（最大1000件）をGeminiで再分析し、資質・能力を抽出・更新します。<br />
+                                    処理には数分かかる場合があります。
+                                </p>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                                        管理者パスワード
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={competencyReclassifyPassword}
+                                        onChange={(e) => setCompetencyReclassifyPassword(e.target.value)}
+                                        placeholder="パスワードを入力"
+                                        style={{
+                                            width: "100%",
+                                            padding: "10px",
+                                            border: "1px solid #ddd",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            boxSizing: "border-box"
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ display: "flex", gap: 12 }}>
+                                    <button
+                                        onClick={handleCompetencyReclassify}
+                                        disabled={!competencyReclassifyPassword}
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 20px",
+                                            background: competencyReclassifyPassword ? "#48c5a9" : "#ccc",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            fontWeight: 600,
+                                            cursor: competencyReclassifyPassword ? "pointer" : "not-allowed"
+                                        }}
+                                    >
+                                        実行
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCompetencyReclassifyModal(false)}
+                                        style={{
+                                            flex: 1,
+                                            padding: "10px 20px",
+                                            background: "white",
+                                            color: "var(--text-main)",
+                                            border: "1px solid #ddd",
+                                            borderRadius: 6,
+                                            fontSize: "1rem",
+                                            cursor: "pointer"
+                                        }}
+                                    >
+                                        キャンセル
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {competencyReclassifyStatus === "processing" && (
+                            <div style={{ textAlign: "center", padding: 40 }}>
+                                <div className="blink" style={{ fontSize: "1.2rem", marginBottom: 16 }}>
+                                    処理中...
+                                </div>
+                                <p className="note">
+                                    アンケートログを分析中です。しばらくお待ちください。
+                                </p>
+                            </div>
+                        )}
+
+                        {(competencyReclassifyStatus === "success" || competencyReclassifyStatus === "error") && (
+                            <div>
+                                <div style={{
+                                    padding: 16,
+                                    background: competencyReclassifyStatus === "success" ? "#d4edda" : "#f8d7da",
+                                    borderRadius: 6,
+                                    marginBottom: 16
+                                }}>
+                                    {competencyReclassifyMessage}
+                                </div>
+
+                                {competencyReclassifyResult && (
+                                    <div style={{
+                                        padding: 16,
+                                        background: "#f8f9fa",
+                                        borderRadius: 6,
+                                        marginBottom: 16
+                                    }}>
+                                        <div style={{ marginBottom: 12, fontSize: "0.9rem", color: "#666" }}>
+                                            対象: 資質・能力のみ
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                            <span>処理件数:</span>
+                                            <span style={{ fontWeight: 700 }}>{competencyReclassifyResult.processed}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                            <span>更新成功:</span>
+                                            <span style={{ fontWeight: 700, color: "#28a745" }}>{competencyReclassifyResult.updated}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span>失敗:</span>
+                                            <span style={{ fontWeight: 700, color: "#dc3545" }}>{competencyReclassifyResult.failed}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {competencyReclassifyErrors && competencyReclassifyErrors.length > 0 && (
+                                    <div style={{
+                                        padding: 16,
+                                        background: "#fff3cd",
+                                        borderRadius: 6,
+                                        marginBottom: 16,
+                                        maxHeight: 200,
+                                        overflow: "auto"
+                                    }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 8 }}>エラー詳細:</div>
+                                        {competencyReclassifyErrors.map((err, idx) => (
+                                            <div key={idx} style={{
+                                                fontSize: "0.85rem",
+                                                marginBottom: 8,
+                                                paddingBottom: 8,
+                                                borderBottom: idx < competencyReclassifyErrors.length - 1 ? "1px solid #eee" : "none"
+                                            }}>
+                                                <div style={{ fontFamily: "monospace", color: "#666" }}>
+                                                    ID: {err.id.slice(0, 8)}...
+                                                </div>
+                                                <div style={{ marginTop: 4, wordBreak: "break-word" }}>
+                                                    {err.error}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => setShowCompetencyReclassifyModal(false)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "10px 20px",
+                                        background: "#48c5a9",
                                         color: "white",
                                         border: "none",
                                         borderRadius: 6,
