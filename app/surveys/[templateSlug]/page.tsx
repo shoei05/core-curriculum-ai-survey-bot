@@ -955,8 +955,8 @@ export default function SurveyPage({
             <h3 style={{ margin: "0 0 16px 0", textAlign: "center", fontSize: "1.2rem" }}>
               もう少し続けますか？
             </h3>
-            <p style={{ margin: "0 0 16px 0", textAlign: "center", color: "#666" }}>
-              あと{Math.ceil(extendConfirmCountdown / 60)}分で自動的に終了します
+            <p style={{ margin: "0 0 16px 0", textAlign: "center", color: "#666", lineHeight: "1.8" }}>
+              あと1分で自動的に終了します（残り{extendConfirmCountdown}秒）
             </p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
               <button
