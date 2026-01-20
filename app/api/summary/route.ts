@@ -21,11 +21,11 @@ const SummarySchema = z.object({
   issueCategories: z.array(z.object({
     category: z.string(),
     items: z.array(z.string()).min(1)
-  })).min(1),
+  })).optional().default([]),
   competencyCategories: z.array(z.object({
     category: z.string(),
     items: z.array(z.string()).min(1)
-  })).min(1),
+  })).optional().default([]),
   coreItems: z.array(z.string()).optional()
 });
 
@@ -133,8 +133,8 @@ export async function POST(req: Request) {
             `- summaryBulletsは3〜5個\n` +
             `- keywordGroupsは3〜6カテゴリ\n` +
             `- keywordsは各カテゴリ2〜6個、短い名詞中心\n\n` +
-            `- issueCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
-            `- competencyCategoriesは1〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
+            `- issueCategoriesは0〜4カテゴリ（困り事がない場合は空配列[]）、itemsは各カテゴリ1〜4個\n` +
+            `- competencyCategoriesは0〜4カテゴリ（該当がない場合は空配列[]）、itemsは各カテゴリ1〜4個\n` +
             `- issueCategoriesは「普段の教育の困り事」に対応する内容に限定\n` +
             `- competencyCategoriesは「重要な資質・能力」に対応する内容に限定\n` +
             `- coreItemsは会話内容に関連するモデル・コア・カリキュラムの項目コード（0〜10個程度）\n` +
