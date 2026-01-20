@@ -62,12 +62,15 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
   // Create callbacks with memoized values
   const getWordColor = useCallback(
     (word: WordCloudWord) => {
+      if (!words || words.length === 0) {
+        return accentColor;
+      }
       const max = Math.max(...words.map((w) => w.value));
       const min = Math.min(...words.map((w) => w.value));
       const normalized = max === min ? 0.5 : (word.value - min) / (max - min);
       return colorScale(normalized);
     },
-    [words, colorScale]
+    [words, colorScale, accentColor]
   );
 
   const getWordTooltip = useCallback((word: WordCloudWord) => {
@@ -87,9 +90,6 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     [getWordColor, getWordTooltip, onWordClick]
   );
 
-  // Size configuration
-  const size: [number, number] = [500, 300];
-
   if (words.length === 0) {
     return (
       <div
@@ -108,9 +108,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
 
   return (
     <div style={{ width: "100%", height: "300px" }}>
-      <div style={{ width: "100%", height: "100%" }}>
-        <Wordcloud words={words} size={size} options={options} callbacks={callbacks} />
-      </div>
+      <Wordcloud words={words} options={options} callbacks={callbacks} />
     </div>
   );
 }
