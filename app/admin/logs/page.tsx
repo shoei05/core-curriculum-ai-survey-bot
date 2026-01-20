@@ -151,7 +151,7 @@ function AdminLogsContent() {
             <div className="log-list">
                 {filteredLogs.length === 0 && <p className="note">条件に一致する回答データがありません。</p>}
                 {filteredLogs.map((log) => (
-                    <details key={log.id} className="log-item" style={{ marginBottom: 16 }}>
+                    <details key={log.id} className="log-item" style={{ marginBottom: 16 }} open>
                         <summary style={{ fontSize: "1.1rem", padding: "8px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
                                 {new Date(log.created_at).toLocaleString("ja-JP")} - {log.template_slug} ({log.messages.length}件のやり取り)
