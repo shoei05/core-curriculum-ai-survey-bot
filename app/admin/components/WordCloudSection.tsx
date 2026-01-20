@@ -30,7 +30,7 @@ export function WordCloudSection() {
   const [timeRange, setTimeRange] = useState<WordCloudQueryParams["timeRange"]>("all");
   const [minFrequency, setMinFrequency] = useState(1); // Changed from 2 to 1
   const [maxWords, setMaxWords] = useState(100); // Changed from 50 to 100
-  const [source, setSource] = useState<"user_messages" | "keyword_groups">("user_messages");
+  const [source, setSource] = useState<"user_messages" | "keyword_groups">("keyword_groups"); // Default to AI-extracted keywords
 
   // Reclassify state
   const [showReclassifyModal, setShowReclassifyModal] = useState(false);
@@ -262,8 +262,8 @@ export function WordCloudSection() {
               background: "var(--card)",
             }}
           >
-            <option value="user_messages">ユーザー回答</option>
             <option value="keyword_groups">AI抽出キーワード</option>
+            <option value="user_messages">ユーザー回答</option>
           </select>
         </div>
 

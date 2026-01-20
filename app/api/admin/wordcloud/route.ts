@@ -15,7 +15,7 @@ export const runtime = "nodejs";
  * - timeRange: '7d' | '30d' | '90d' | 'all' (default: 'all')
  * - minFrequency: minimum keyword frequency (default: 1)
  * - maxWords: maximum number of words to return (default: 100)
- * - source: 'keyword_groups' | 'user_messages' (default: 'user_messages')
+ * - source: 'keyword_groups' | 'user_messages' (default: 'keyword_groups')
  */
 export async function GET(req: Request) {
   const supabase = getSupabaseAdmin();
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     const timeRange = (url.searchParams.get("timeRange") as WordCloudQueryParams["timeRange"]) || "all";
     const minFrequency = parseInt(url.searchParams.get("minFrequency") || "1", 10);
     const maxWords = parseInt(url.searchParams.get("maxWords") || "100", 10);
-    const source = url.searchParams.get("source") || "user_messages"; // default to user messages
+    const source = url.searchParams.get("source") || "keyword_groups"; // default to AI-extracted keywords
 
     // Calculate date range filter
     let dateFilter: string | undefined;
