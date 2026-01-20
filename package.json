@@ -10,16 +10,19 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.1",
+    "d3-scale": "^4.0.2",
     "next": "^15.1.0",
     "openai": "^5.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "react-wordcloud": "^1.2.7",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/d3-scale": "^4.0.9",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

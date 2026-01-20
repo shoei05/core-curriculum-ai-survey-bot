@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { WordCloudSection } from "./components/WordCloudSection";
 
 interface Stats {
     totalCount: number;
@@ -395,6 +396,9 @@ export default function AdminDashboard() {
                     </div>
                 ))}
             </div>
+
+            {/* Word Cloud Section */}
+            <WordCloudSection />
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: 24 }}>
                 {renderBarChart("困り事カテゴリ分布", stats.issueDistribution, "var(--accent)", "issue")}
