@@ -265,21 +265,29 @@ function AdminLogsContent() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
                                 <div className="keyword-item">
                                     <div className="log-section-title">困り事</div>
-                                    {log.issue_categories?.map((g: any, i: number) => (
-                                        <div key={i} style={{ marginBottom: 8 }}>
-                                            <div className="keyword-title">{g.category}</div>
-                                            <div className="note">{g.items?.join(" / ")}</div>
-                                        </div>
-                                    ))}
+                                    {log.issue_categories && log.issue_categories.length > 0 ? (
+                                        log.issue_categories.map((g: any, i: number) => (
+                                            <div key={i} style={{ marginBottom: 8 }}>
+                                                <div className="keyword-title">{g.category}</div>
+                                                <div className="note">{g.items?.join(" / ")}</div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="note">該当なし（未分類）</div>
+                                    )}
                                 </div>
                                 <div className="keyword-item">
                                     <div className="log-section-title">資質・能力</div>
-                                    {log.competency_categories?.map((g: any, i: number) => (
-                                        <div key={i} style={{ marginBottom: 8 }}>
-                                            <div className="keyword-title">{g.category}</div>
-                                            <div className="note">{g.items?.join(" / ")}</div>
-                                        </div>
-                                    ))}
+                                    {log.competency_categories && log.competency_categories.length > 0 ? (
+                                        log.competency_categories.map((g: any, i: number) => (
+                                            <div key={i} style={{ marginBottom: 8 }}>
+                                                <div className="keyword-title">{g.category}</div>
+                                                <div className="note">{g.items?.join(" / ")}</div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="note">該当なし（未分類）</div>
+                                    )}
                                 </div>
                                 <div className="keyword-item">
                                     <div className="log-section-title">コアカリ項目</div>
