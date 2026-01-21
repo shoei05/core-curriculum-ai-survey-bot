@@ -125,6 +125,8 @@ function AdminFormsContent() {
     }
   };
 
+  // 早期リターン前にすべてのフックを定義（Reactフックルール）
+
   // フィルタ適用
   const filteredResponses = useMemo(() => {
     return responses.filter((r) => {
@@ -143,46 +145,6 @@ function AdminFormsContent() {
       return true;
     });
   }, [responses, filterRespondentType, filterChallenge, filterExpectation]);
-
-  if (!isAuthenticated) {
-    return (
-      <div style={{ maxWidth: 400, margin: "100px auto", padding: 24 }}>
-        <div className="consent-card">
-          <h2 style={{ textAlign: "center", marginBottom: 24 }}>管理者ログイン</h2>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 600, fontSize: "1rem" }}>
-              パスワード
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-              style={{
-                width: "100%",
-                padding: 16,
-                border: "1px solid #ddd",
-                borderRadius: 6,
-                fontSize: "1.1rem",
-              }}
-              placeholder="管理パスワードを入力"
-              autoFocus
-            />
-            <p style={{ fontSize: "0.85rem", color: "#666", marginTop: 8 }}>
-              環境変数 ADMIN_PASSWORD で設定されたパスワードを入力してください
-            </p>
-          </div>
-          <button onClick={handleLogin} className="btn btn-primary" style={{ width: "100%", padding: 14, fontSize: "1rem" }}>
-            ログイン
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
-  }
 
   // BI集計データ（選択肢リストも含めてまとめて計算）
   const statsData = useMemo(() => {
@@ -266,6 +228,46 @@ function AdminFormsContent() {
       dailyData,
     };
   }, [responses]);
+
+  if (!isAuthenticated) {
+    return (
+      <div style={{ maxWidth: 400, margin: "100px auto", padding: 24 }}>
+        <div className="consent-card">
+          <h2 style={{ textAlign: "center", marginBottom: 24 }}>管理者ログイン</h2>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600, fontSize: "1rem" }}>
+              パスワード
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+              style={{
+                width: "100%",
+                padding: 16,
+                border: "1px solid #ddd",
+                borderRadius: 6,
+                fontSize: "1.1rem",
+              }}
+              placeholder="管理パスワードを入力"
+              autoFocus
+            />
+            <p style={{ fontSize: "0.85rem", color: "#666", marginTop: 8 }}>
+              環境変数 ADMIN_PASSWORD で設定されたパスワードを入力してください
+            </p>
+          </div>
+          <button onClick={handleLogin} className="btn btn-primary" style={{ width: "100%", padding: 14, fontSize: "1rem" }}>
+            ログイン
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
+  }
 
   return (
     <div>
