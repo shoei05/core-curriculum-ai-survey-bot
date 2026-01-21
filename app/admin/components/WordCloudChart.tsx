@@ -57,8 +57,9 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     );
   }
 
-  // Validate each word has required properties
-  const validWords = words.filter((word) => {
+  // Validate each word has required properties (memoized to prevent infinite re-renders)
+  const validWords = useMemo(() => {
+    return words.filter((word) => {
     if (!word || typeof word !== 'object') {
       console.warn("[WordCloudChart] Invalid word object:", word);
       return false;
@@ -72,7 +73,8 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
       return false;
     }
     return true;
-  });
+    });
+  }, [words]);
 
   console.log("[WordCloudChart] Validation results:", {
     inputCount: words.length,
@@ -119,6 +121,16 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     [accentColor, accentDeepColor]
   );
 
+  // Pre-calculate min/max values to stabilize getWordColor dependency
+  const valueRange = useMemo(() => {
+    if (validWords.length === 0) return { min: 0, max: 0 };
+    const values = validWords.map((w) => w.value);
+    return {
+      min: Math.min(...values),
+      max: Math.max(...values)
+    };
+  }, [validWords]);
+
   // Create callbacks with memoized values
   const getWordColor = useCallback(
     (word: WordCloudWord) => {
@@ -126,9 +138,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
         return accentColor;
       }
       try {
-        const values = validWords.map((w) => w.value);
-        const max = Math.max(...values);
-        const min = Math.min(...values);
+        const { min, max } = valueRange;
         const wordValue = word?.value ?? 0;
         const normalized = max === min ? 0.5 : (wordValue - min) / (max - min);
         return colorScale(normalized);
@@ -137,7 +147,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
         return accentColor;
       }
     },
-    [validWords, colorScale, accentColor]
+    [validWords, colorScale, accentColor, valueRange]
   );
 
   const getWordTooltip = useCallback((word: WordCloudWord) => {
