@@ -185,8 +185,12 @@ function AdminFormsContent() {
   }
 
   // 選択肢リスト（フィルタ用）
-  const challengeOptions = Array.from(new Set(responses.flatMap((r) => r.challenges)));
-  const expectationOptions = Array.from(new Set(responses.flatMap((r) => r.expectations)));
+  const challengeOptions = Array.from(
+    new Set(responses.flatMap((r) => r.challenges || []))
+  );
+  const expectationOptions = Array.from(
+    new Set(responses.flatMap((r) => r.expectations || []))
+  );
 
   // BI集計データ
   const statsData = useMemo(() => {
@@ -241,8 +245,6 @@ function AdminFormsContent() {
 
     // 日別回答数（最近7日）
     const dailyCounts: Record<string, number> = {};
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     responses.forEach((r) => {
       const date = new Date(r.created_at).toLocaleDateString("ja-JP");
       dailyCounts[date] = (dailyCounts[date] || 0) + 1;
@@ -401,7 +403,7 @@ function AdminFormsContent() {
                         <div
                           style={{
                             height: "100%",
-                            width: `${(item.count / statsData.challengeRanking[0].count) * 100}%`,
+                            width: `${statsData.challengeRanking[0] ? (item.count / statsData.challengeRanking[0].count) * 100 : 0}%`,
                             background: `hsl(0, 70%, ${60 - idx * 10}%)`,
                             borderRadius: 3,
                           }}
@@ -439,7 +441,7 @@ function AdminFormsContent() {
                         <div
                           style={{
                             height: "100%",
-                            width: `${(item.count / statsData.expectationRanking[0].count) * 100}%`,
+                            width: `${statsData.expectationRanking[0] ? (item.count / statsData.expectationRanking[0].count) * 100 : 0}%`,
                             background: `hsl(140, 70%, ${60 - idx * 10}%)`,
                             borderRadius: 3,
                           }}
