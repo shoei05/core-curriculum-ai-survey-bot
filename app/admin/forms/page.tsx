@@ -184,16 +184,15 @@ function AdminFormsContent() {
     return <div className="blink" style={{ textAlign: "center", padding: 40 }}>読み込み中...</div>;
   }
 
-  // 選択肢リスト（フィルタ用）
-  const challengeOptions = Array.from(
-    new Set(responses.flatMap((r) => r.challenges || []))
-  );
-  const expectationOptions = Array.from(
-    new Set(responses.flatMap((r) => r.expectations || []))
-  );
-
-  // BI集計データ
+  // BI集計データ（選択肢リストも含めてまとめて計算）
   const statsData = useMemo(() => {
+    // 選択肢リスト（フィルタ用）
+    const challengeOptions = Array.from(
+      new Set(responses.flatMap((r) => r.challenges || []))
+    );
+    const expectationOptions = Array.from(
+      new Set(responses.flatMap((r) => r.expectations || []))
+    );
     // 回答者タイプ分布
     const typeCounts: Record<string, number> = {};
     const typeLabels: Record<string, string> = {};
@@ -254,6 +253,8 @@ function AdminFormsContent() {
       .slice(-7);
 
     return {
+      challengeOptions,
+      expectationOptions,
       typeDistribution,
       challengeRanking,
       expectationRanking,
@@ -490,7 +491,7 @@ function AdminFormsContent() {
                   style={{ padding: 8, borderRadius: 4 }}
                 >
                   <option value="all">すべて</option>
-                  {challengeOptions.map((c) => (
+                  {statsData.challengeOptions.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -503,7 +504,7 @@ function AdminFormsContent() {
                   style={{ padding: 8, borderRadius: 4 }}
                 >
                   <option value="all">すべて</option>
-                  {expectationOptions.map((e) => (
+                  {statsData.expectationOptions.map((e) => (
                     <option key={e} value={e}>{e}</option>
                   ))}
                 </select>
