@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { FormResponse } from "@/types/survey";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 // Zodスキーマでバリデーション
 const FormResponseSchema = z.object({
@@ -37,15 +37,50 @@ export async function POST(req: Request) {
     const json = await req.json();
     const body = FormResponseSchema.parse(json);
 
-    // TODO: Supabaseに保存
-    // 現在はモックでsession_idとform_response_idを返す
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.error("Supabase admin client unavailable: missing env vars.");
+      return NextResponse.json(
+        { error: "データベースに接続できません" },
+        { status: 500 }
+      );
+    }
+
     const sessionId = crypto.randomUUID();
-    const formResponseId = crypto.randomUUID();
+
+    // Supabaseに保存
+    const insertPayload = {
+      session_id: sessionId,
+      respondent_type: body.respondent_type,
+      university_type: body.university_type ?? null,
+      specialty: body.specialty ?? null,
+      experience_years: body.experience_years ?? null,
+      student_year: body.student_year ?? null,
+      challenges: body.challenges,
+      expectations: body.expectations,
+      challenge_other: body.challenge_other ?? null,
+      expectation_other: body.expectation_other ?? null,
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("form_responses")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return NextResponse.json(
+        { error: "データの保存に失敗しました" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       sessionId,
-      formResponseId,
+      formResponseId: data?.id ?? sessionId,
     });
   } catch (error) {
     console.error("Form API Error:", error);

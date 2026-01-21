@@ -8,6 +8,8 @@ const BodySchema = z.object({
     content: z.string()
   })),
   templateSlug: z.string().optional(),
+  sessionId: z.string().optional(),
+  formResponseId: z.string().uuid().optional(),
   startedAt: z.string().optional(),
   endedAt: z.string().optional()
 });
@@ -171,7 +173,9 @@ export async function POST(req: Request) {
     const coreItemColumns = coreItemsToColumns(payload.coreItems ?? []);
 
     const insertPayload = {
-      template_slug: body.templateSlug ?? "core-curriculum-2026-survey",
+      template_slug: body.templateSlug ?? "two-stage-survey",
+      session_id: body.sessionId ?? null,
+      form_response_id: body.formResponseId ?? null,
       started_at: body.startedAt ?? null,
       ended_at: body.endedAt ?? new Date().toISOString(),
       messages: body.messages,
@@ -206,6 +210,8 @@ export async function POST(req: Request) {
         // Retry with only basic columns (no issue/competency/core_items categories)
         const fallbackPayload = {
           template_slug: insertPayload.template_slug,
+          session_id: insertPayload.session_id,
+          form_response_id: insertPayload.form_response_id,
           started_at: insertPayload.started_at,
           ended_at: insertPayload.ended_at,
           messages: insertPayload.messages,
@@ -217,7 +223,7 @@ export async function POST(req: Request) {
         const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
         if (retryError) {
           console.error("Supabase insert retry error:", retryError);
-          // Try again with even fewer columns (no core_items)
+          // Try again with even fewer columns (no core_items, no form_response_id)
           const minimalPayload = {
             template_slug: insertPayload.template_slug,
             started_at: insertPayload.started_at,
