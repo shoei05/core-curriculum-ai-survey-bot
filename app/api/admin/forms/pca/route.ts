@@ -28,10 +28,15 @@ const EXPECTATION_CODES = [
   "genai_education",
   "evaluation_improvement",
   "interprofessional",
+  "clinical_quality_enhancement",
+  "priority_clarification",
+  "integration_enhancement",
+  "local_adaptation_enhancement",
+  "exam_alignment_enhancement",
   "other",
 ] as const;
 
-// 全選択肢コード（17次元：11課題 + 6期待）
+// 全選択肢コード（22次元：11課題 + 11期待）
 const ALL_CODES = [...CHALLENGE_CODES, ...EXPECTATION_CODES] as const;
 
 /**
@@ -190,7 +195,7 @@ function selectionsToVector(challenges: string[], expectations: string[]): numbe
     }
   });
 
-  // 期待（6次元）
+  // 期待（11次元）
   EXPECTATION_CODES.forEach((code, idx) => {
     if (expectations.includes(code)) {
       vector[CHALLENGE_CODES.length + idx] = 1;

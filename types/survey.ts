@@ -36,6 +36,11 @@ export type ExpectationCode =
   | 'genai_education'
   | 'evaluation_improvement'
   | 'interprofessional'
+  | 'clinical_quality_enhancement'
+  | 'priority_clarification'
+  | 'integration_enhancement'
+  | 'local_adaptation_enhancement'
+  | 'exam_alignment_enhancement'
   | 'other';
 
 // マスターオプション
@@ -161,6 +166,11 @@ export const EXPECTATION_LABELS: Record<ExpectationCode, string> = {
   genai_education: '生成AI活用教育の充実',
   evaluation_improvement: '評価方法の改善',
   interprofessional: '多職種連携教育の充実',
+  clinical_quality_enhancement: '実習・臨床経験の質の均質化',
+  priority_clarification: '学修目標の優先順位の明確化',
+  integration_enhancement: '基礎・臨床・社会医学の統合の強化',
+  local_adaptation_enhancement: '地域・大学の実情に合わせた柔軟な運用',
+  exam_alignment_enhancement: '国家試験・卒前評価との整合性強化',
   other: 'その他',
 };
 
