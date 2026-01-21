@@ -33,6 +33,32 @@ const FormResponseSchema = z.object({
 
 export const runtime = "nodejs";
 
+// IPアドレスを取得
+function getClientIp(req: Request): string {
+  // ヘッダーから IP アドレスを取得
+  const headers = req.headers;
+  const forwardedFor = headers.get("x-forwarded-for");
+  const realIp = headers.get("x-real-ip");
+  const cfConnectingIp = headers.get("cf-connecting-ip"); // Cloudflare
+
+  if (forwardedFor) {
+    // x-forwarded-for は複数の IP が含まれる場合がある（クライアント, プロキシ1, プロキシ2, ...）
+    // 最初の IP を使用
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  if (realIp) {
+    return realIp;
+  }
+
+  if (cfConnectingIp) {
+    return cfConnectingIp;
+  }
+
+  // 取得できない場合はunknownを返す
+  return "unknown";
+}
+
 export async function POST(req: Request) {
   try {
     const json = await req.json();
@@ -48,6 +74,7 @@ export async function POST(req: Request) {
     }
 
     const sessionId = crypto.randomUUID();
+    const clientIp = getClientIp(req);
 
     // Supabaseに保存
     const insertPayload = {
@@ -61,6 +88,7 @@ export async function POST(req: Request) {
       expectations: body.expectations,
       challenge_other: body.challenge_other ?? null,
       expectation_other: body.expectation_other ?? null,
+      ip_address: clientIp,
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -22,6 +22,11 @@ export type ChallengeCode =
   | 'lack_educators'
   | 'evaluation_issues'
   | 'lack_genai_education'
+  | 'clinical_quality_variance'
+  | 'priority_unclear'
+  | 'integration_insufficient'
+  | 'local_adaptation_difficult'
+  | 'exam_alignment_weak'
   | 'other';
 
 // 次期改定への期待選択肢（2026年次期改定調査向け）
@@ -142,6 +147,11 @@ export const CHALLENGE_LABELS: Record<ChallengeCode, string> = {
   lack_educators: '教員・指導者が不足している',
   evaluation_issues: '評価方法に課題がある',
   lack_genai_education: '生成AI活用教育が不十分',
+  clinical_quality_variance: '実習先・臨床経験の質がばらつく',
+  priority_unclear: '学修目標の優先順位が分かりにくい',
+  integration_insufficient: '基礎・臨床・社会医学の統合が不十分',
+  local_adaptation_difficult: '地域・大学の実情に合わせにくい',
+  exam_alignment_weak: '国家試験・卒前評価との整合が弱い',
   other: 'その他',
 };
 

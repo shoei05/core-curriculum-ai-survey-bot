@@ -13,6 +13,11 @@ const CHALLENGE_CODES = [
   "lack_educators",
   "evaluation_issues",
   "lack_genai_education",
+  "clinical_quality_variance",
+  "priority_unclear",
+  "integration_insufficient",
+  "local_adaptation_difficult",
+  "exam_alignment_weak",
   "other",
 ] as const;
 
@@ -26,7 +31,7 @@ const EXPECTATION_CODES = [
   "other",
 ] as const;
 
-// 全選択肢コード（11次元）
+// 全選択肢コード（17次元：11課題 + 6期待）
 const ALL_CODES = [...CHALLENGE_CODES, ...EXPECTATION_CODES] as const;
 
 /**
@@ -178,14 +183,14 @@ function computeEigenvectors(matrix: number[][], numComponents: number): number[
 function selectionsToVector(challenges: string[], expectations: string[]): number[] {
   const vector = new Array(ALL_CODES.length).fill(0);
 
-  // 課題（7次元）
+  // 課題（11次元）
   CHALLENGE_CODES.forEach((code, idx) => {
     if (challenges.includes(code)) {
       vector[idx] = 1;
     }
   });
 
-  // 期待（7次元）
+  // 期待（6次元）
   EXPECTATION_CODES.forEach((code, idx) => {
     if (expectations.includes(code)) {
       vector[CHALLENGE_CODES.length + idx] = 1;

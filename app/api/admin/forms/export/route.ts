@@ -61,13 +61,15 @@ export async function POST(req: Request) {
     // CSVヘッダー（BOM付きUTF-8）
     let csv = "\uFEFF"; // BOM
 
-    csv += "回答日時,回答者タイプ,大学設置形態,専門分野,教育経験,学年,課題認識,その他の課題,期待,その他の期待,チャットログ有無\n";
+    csv += "回答日時,IPアドレス,回答者タイプ,大学設置形態,専門分野,教育経験,学年,課題認識,その他の課題,期待,その他の期待,チャットログ有無\n";
 
     // データ行
     for (const item of formResponses || []) {
       const row = [
         // 回答日時
         `"${new Date(item.created_at).toLocaleString("ja-JP")}"`,
+        // IPアドレス
+        `"${item.ip_address || "不明"}"`,
         // 回答者タイプ
         codeToLabel(RESPONDENT_TYPE_LABELS, item.respondent_type),
         // 大学設置形態
