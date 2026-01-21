@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { getTemplateBySlug } from "@/lib/templates";
-import { generateSummaryPrompt } from "@/lib/prompts";
 import type { FormResponse } from "@/types/survey";
 
 // 入力制限: メッセージ数とコンテンツ長の上限
@@ -135,54 +134,9 @@ async function handleSurveyChat(json: unknown) {
 
   // 通常のチャット処理
   const userAssistantMessages = messages.filter((m) => m.role !== "system");
-  const MAX_SURVEY_MESSAGES = 14; // 7往復
-  const MIN_SURVEY_MESSAGES = 10; // 5往復以上で終了可能
 
-  // 終了判定
-  const shouldComplete =
-    userAssistantMessages.length >= MAX_SURVEY_MESSAGES ||
-    (userAssistantMessages.length >= MIN_SURVEY_MESSAGES &&
-     messages[messages.length - 1]?.role === "user");
-
-  if (shouldComplete) {
-    // サマリー生成
-    const summaryPrompt = generateSummaryPrompt(userAssistantMessages);
-
-    const summaryResponse = await client.chat.completions.create({
-      model: "google/gemini-3-flash-preview",
-      messages: [
-        { role: "system", content: "あなたは優秀なアシスタントです。日本語で回答してください。" },
-        { role: "user", content: summaryPrompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-    });
-
-    const summaryContent = summaryResponse.choices[0]?.message?.content;
-    let summaryData = { bullets: [], revision_requests: [], keywords: [] };
-
-    if (summaryContent) {
-      try {
-        summaryData = JSON.parse(summaryContent);
-      } catch (e) {
-        console.error("Failed to parse summary:", e);
-      }
-    }
-
-    // 最終メッセージ（サマリー）
-    const finalMessage = `ご協力ありがとうございました！
-
-【まとめ】
-${summaryData.bullets.map((b: string) => `• ${b}`).join("\n")}
-
-次期コアカリ改定の検討に活用させていただきます。`;
-
-    // TODO: survey_logsに保存
-
-    return new Response(JSON.stringify({ message: finalMessage, isComplete: true }), {
-      headers: { "Content-Type": "application/json; charset=utf-8" }
-    });
-  }
+  // 終了判定はフロントエンドのタイマーに委ねる（API側では自動終了しない）
+  // ユーザーが明示的に終了を選択した場合のみサマリーを生成
 
   // 通常のチャット処理
   const apiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
