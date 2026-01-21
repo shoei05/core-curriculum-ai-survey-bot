@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type {
   FormResponse,
@@ -21,6 +21,48 @@ import {
   CHALLENGE_LABELS,
   EXPECTATION_LABELS,
 } from "@/types/survey";
+
+interface OtherTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  rows?: number;
+}
+
+function OtherTextarea({ value, onChange, placeholder, rows = 3 }: OtherTextareaProps) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setLocalValue(e.target.value);
+  };
+
+  const handleBlur = () => {
+    onChange(localValue);
+  };
+
+  return (
+    <textarea
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      rows={rows}
+      style={{
+        width: "100%",
+        padding: 12,
+        border: "1px solid #ddd",
+        borderRadius: 6,
+        fontSize: "0.95rem",
+        resize: "vertical",
+        boxSizing: "border-box",
+      }}
+    />
+  );
+}
 
 export default function SurveyPage() {
   const router = useRouter();
@@ -394,21 +436,11 @@ export default function SurveyPage() {
           <label style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
             その他の課題（自由記述）
           </label>
-          <textarea
-            name="challenge_other"
+          <OtherTextarea
             value={challengeOther}
-            onChange={(e) => setChallengeOther(e.target.value)}
+            onChange={setChallengeOther}
             placeholder="具体的にお書きください"
             rows={3}
-            style={{
-              width: "100%",
-              padding: 12,
-              border: "1px solid #ddd",
-              borderRadius: 6,
-              fontSize: "0.95rem",
-              resize: "vertical",
-              boxSizing: "border-box",
-            }}
           />
         </div>
       )}
@@ -482,21 +514,11 @@ export default function SurveyPage() {
           <label style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
             その他の期待（自由記述）
           </label>
-          <textarea
-            name="expectation_other"
+          <OtherTextarea
             value={expectationOther}
-            onChange={(e) => setExpectationOther(e.target.value)}
+            onChange={setExpectationOther}
             placeholder="具体的にお書きください"
             rows={3}
-            style={{
-              width: "100%",
-              padding: 12,
-              border: "1px solid #ddd",
-              borderRadius: 6,
-              fontSize: "0.95rem",
-              resize: "vertical",
-              boxSizing: "border-box",
-            }}
           />
         </div>
       )}
