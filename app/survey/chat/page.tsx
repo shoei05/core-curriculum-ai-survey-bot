@@ -80,6 +80,7 @@ export default function ChatPage() {
   const [sidePanelFocus, setSidePanelFocus] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAiMessageRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const extendConfirmTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -192,9 +193,12 @@ export default function ChatPage() {
     };
   }, [showExtendConfirmModal]);
 
-  // 自動スクロール
+  // 自動スクロール（最新のAIメッセージの先頭へ）
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // 最新のメッセージがAIの場合、そのメッセージの先頭にスクロール
+    if (messages.length > 0 && messages[messages.length - 1].role === "assistant") {
+      lastAiMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }, [messages]);
 
   // textareaの高さを自動調整
@@ -461,9 +465,15 @@ export default function ChatPage() {
         {/* チャットパネル */}
         <section className="chat-panel">
           <div className="message-stack">
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <div
                 key={message.id}
+                ref={
+                  // 最新のメッセージがAIの場合、refを設定
+                  message.role === "assistant" && index === messages.length - 1
+                    ? lastAiMessageRef
+                    : null
+                }
                 className={`message ${message.role === "user" ? "message-user" : "message-ai"}`}
               >
                 <div className="message-role">{message.role === "user" ? "あなた" : "AI"}</div>

@@ -211,7 +211,7 @@ function AdminFormsContent() {
     const challengeCounts: Record<string, number> = {};
     responses.forEach((r) => {
       if (!r.is_chat_only) {
-        r.challenges.forEach((c) => {
+        (r.challenges || []).forEach((c) => {
           challengeCounts[c] = (challengeCounts[c] || 0) + 1;
         });
       }
@@ -225,7 +225,7 @@ function AdminFormsContent() {
     const expectationCounts: Record<string, number> = {};
     responses.forEach((r) => {
       if (!r.is_chat_only) {
-        r.expectations.forEach((e) => {
+        (r.expectations || []).forEach((e) => {
           expectationCounts[e] = (expectationCounts[e] || 0) + 1;
         });
       }
