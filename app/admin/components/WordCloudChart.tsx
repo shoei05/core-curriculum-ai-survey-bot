@@ -121,20 +121,23 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
     [accentColor, accentDeepColor]
   );
 
-  // Pre-calculate min/max values to stabilize getWordColor dependency
+  // Store validWords length and valueRange as separate memoized values
+  // to avoid including the entire validWords array in dependencies
+  const wordCount = validWords.length;
   const valueRange = useMemo(() => {
-    if (validWords.length === 0) return { min: 0, max: 0 };
+    if (wordCount === 0) return { min: 0, max: 0 };
     const values = validWords.map((w) => w.value);
     return {
       min: Math.min(...values),
       max: Math.max(...values)
     };
-  }, [validWords]);
+  }, [validWords]); // validWords is a stable reference due to useMemo above
 
   // Create callbacks with memoized values
+  // Note: We use wordCount and valueRange instead of validWords to break the dependency cycle
   const getWordColor = useCallback(
     (word: WordCloudWord) => {
-      if (!validWords || validWords.length === 0) {
+      if (wordCount === 0) {
         return accentColor;
       }
       try {
@@ -147,7 +150,7 @@ export function WordCloudChart({ words, onWordClick }: WordCloudChartProps) {
         return accentColor;
       }
     },
-    [validWords, colorScale, accentColor, valueRange]
+    [wordCount, valueRange, colorScale, accentColor]
   );
 
   const getWordTooltip = useCallback((word: WordCloudWord) => {
