@@ -24,11 +24,113 @@ import {
 
 export default function SurveyPage() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const [formData, setFormData] = useState<Partial<FormResponse>>({
     challenges: [],
     expectations: [],
   });
+
+  // ステップ0: 同意画面
+  const Step0Consent = () => (
+    <div className="consent-card">
+      <h2>同意の確認</h2>
+
+      <details className="consent-details" open>
+        <summary>研究背景・目的</summary>
+        <div className="consent-details-content">
+          <p><strong>目的：</strong>2022年に改定された医学教育モデル・コア・カリキュラムの次期改定に向けて、現行カリキュラムの課題と現場のニーズを把握する事前調査です。</p>
+          <p><strong>なぜこの調査：</strong>2022年改定後の教育現場での実践状況、困りごと、および今後の改定に期待する点について、先生方・職員の方々・学生の皆さまの視点をお聞かせいただきたく存じます。</p>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>調査方法</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>形式：</strong>フォーム入力 + AIアシスタントによる対話形式のインタビュー調査</li>
+            <li><strong>所要時間：</strong>約7分間（フォーム2分 + インタビュー5分）</li>
+            <li><strong>時間終了後：</strong>延長を選択いただけます（+3分ずつ）</li>
+            <li><strong>技術：</strong>AIを用いて回答内容を解析し、テーマ・キーワードを抽出します</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>対象者と選出理由</summary>
+        <div className="consent-details-content">
+          <p><strong>対象：</strong>医学教育に携わる教員・職員・医学生の方</p>
+          <p><strong>選出理由：</strong>医学教育の専門知識と実践経験、または学習者としての経験をお持ちであり、カリキュラム改定に向けた貴重なご意見をお伺いできるため</p>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>リスクとベネフィット</summary>
+        <div className="consent-details-content">
+          <p><strong>リスク：</strong>時間の負担、教育上の課題について話すことによる心理的な不快感の可能性（いずれも軽微）</p>
+          <p><strong>ベネフィット：</strong>次期医学教育カリキュラムの改善に貢献</p>
+          <p><strong>謝礼：</strong>なし</p>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>プライバシーとデータ取り扱い</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>匿名性：</strong>個人を特定できる情報（氏名・所属・連絡先等）は収集しません</li>
+            <li><strong>集計：</strong>回答は他の回答者の方のデータと合わせて集約・分析します</li>
+            <li><strong>保存：</strong>データは暗号化され、アクセス制限された環境で保存されます</li>
+            <li><strong>保持期間：</strong>研究目的のため5年間保存します</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>参加者の権利</summary>
+        <div className="consent-details-content">
+          <ul>
+            <li><strong>任意性：</strong>研究への参加は任意です</li>
+            <li><strong>拒否権：</strong>同意しない場合でも不利益は一切ありません</li>
+            <li><strong>途中撤回：</strong>いつでも参加を取りやめることができます</li>
+            <li><strong>質問省略：</strong>回答したくない質問はスキップ可能です</li>
+            <li><strong>データ削除請求：</strong>回答後の削除を希望される場合は、下記連絡先までお問い合わせください</li>
+          </ul>
+        </div>
+      </details>
+
+      <details className="consent-details" open>
+        <summary>研究承認・問い合わせ</summary>
+        <div className="consent-details-content">
+          <p><strong>IRB承認番号：</strong>[機関に合わせて設定 - 例: IRB-2026-001]</p>
+          <p><strong>研究責任者：</strong>[責任者氏名・所属]</p>
+          <p><strong>所属機関：</strong>[機関名]</p>
+          <p><strong>研究に関するお問い合わせ：</strong>[email/phone]</p>
+          <p><strong>研究倫理に関するお問い合わせ：</strong>[IRB連絡先]</p>
+        </div>
+      </details>
+
+      <div className="consent-statement">
+        <p>「上記に同意して開始」をクリックすることで、以下のことを確認したものとみなします：</p>
+        <ul>
+          <li>上記の内容を読み、理解した</li>
+          <li>自らの意志で研究に参加することに同意する</li>
+          <li>いつでも参加を取りやめることができることを理解した</li>
+        </ul>
+      </div>
+
+      <div className="consent-timer-notice">
+        <p style={{ fontWeight: 600 }}>⏰ 制限時間：インタビューは約7分間</p>
+        <p style={{ fontSize: 14, color: "#666" }}>※時間終了後、+3分ずつ延長を選択いただけます</p>
+      </div>
+
+      <button
+        onClick={() => setStep(1)}
+        className="btn btn-primary"
+        style={{ width: "100%", padding: 14, fontSize: "1rem" }}
+      >
+        上記に同意して開始
+      </button>
+    </div>
+  );
 
   // ステップ1: 属性選択
   const Step1Attributes = () => (
@@ -356,6 +458,9 @@ export default function SurveyPage() {
 
   // バリデーション
   const validateStep = (): boolean => {
+    if (step === 0) {
+      return true; // 同意画面は常に進める
+    }
     if (step === 1) {
       if (!formData.respondent_type) return false;
       if (formData.respondent_type === "faculty") {
@@ -380,7 +485,7 @@ export default function SurveyPage() {
     if (!validateStep()) return;
 
     if (step < 3) {
-      setStep((step + 1) as 2 | 3);
+      setStep((step + 1) as 1 | 2 | 3);
     } else {
       // フォーム送信
       try {
@@ -408,14 +513,14 @@ export default function SurveyPage() {
 
   // 戻る
   const handleBack = () => {
-    if (step > 1) {
-      setStep((step - 1) as 1 | 2);
+    if (step > 0) {
+      setStep((step - 1) as 0 | 1 | 2);
     } else {
       router.push("/");
     }
   };
 
-  const stepTitles = ["属性情報", "課題認識", "次期改定への期待"];
+  const stepTitles = ["同意確認", "属性情報", "課題認識", "次期改定への期待"];
 
   return (
     <main style={{ padding: "20px", maxWidth: 600, margin: "0 auto" }}>
@@ -425,10 +530,10 @@ export default function SurveyPage() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#666" }}>
-            ステップ {step} / 3
+            ステップ {step + 1} / 4
           </span>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)" }}>
-            {stepTitles[step - 1]}
+            {stepTitles[step]}
           </span>
         </div>
         <div style={{ width: "100%", backgroundColor: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
@@ -437,51 +542,54 @@ export default function SurveyPage() {
               height: 8,
               backgroundColor: "var(--accent)",
               transition: "width 0.3s",
-              width: `${(step / 3) * 100}%`,
+              width: `${((step + 1) / 4) * 100}%`,
             }}
           />
         </div>
       </div>
 
       {/* フォーム内容 */}
+      {step === 0 && <Step0Consent />}
       {step === 1 && <Step1Attributes />}
       {step === 2 && <Step2Challenges />}
       {step === 3 && <Step3Expectations />}
 
-      {/* ナビゲーションボタン */}
-      <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
-        <button
-          onClick={handleBack}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            border: "2px solid #ccc",
-            backgroundColor: "#fff",
-            color: "#333",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          戻る
-        </button>
-        <button
-          onClick={handleNext}
-          disabled={!validateStep()}
-          style={{
-            flex: 1,
-            padding: 12,
-            borderRadius: 8,
-            border: "none",
-            backgroundColor: validateStep() ? "var(--accent)" : "#ccc",
-            color: "#fff",
-            fontWeight: 600,
-            cursor: validateStep() ? "pointer" : "not-allowed",
-          }}
-        >
-          {step === 3 ? "インタビューへ" : "次へ"}
-        </button>
-      </div>
+      {/* ナビゲーションボタン（同意画面以外で表示） */}
+      {step > 0 && (
+        <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
+          <button
+            onClick={handleBack}
+            style={{
+              flex: 1,
+              padding: 12,
+              borderRadius: 8,
+              border: "2px solid #ccc",
+              backgroundColor: "#fff",
+              color: "#333",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            戻る
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={!validateStep()}
+            style={{
+              flex: 1,
+              padding: 12,
+              borderRadius: 8,
+              border: "none",
+              backgroundColor: validateStep() ? "var(--accent)" : "#ccc",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: validateStep() ? "pointer" : "not-allowed",
+            }}
+          >
+            {step === 3 ? "インタビューへ" : "次へ"}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
