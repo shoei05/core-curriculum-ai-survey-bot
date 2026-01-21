@@ -29,6 +29,9 @@ export default function SurveyPage() {
     challenges: [],
     expectations: [],
   });
+  // 個別のstateでIME入力中の再レンダリングを防止
+  const [challengeOther, setChallengeOther] = useState("");
+  const [expectationOther, setExpectationOther] = useState("");
 
   // ステップ0: 同意画面
   const Step0Consent = () => (
@@ -393,8 +396,8 @@ export default function SurveyPage() {
           </label>
           <textarea
             name="challenge_other"
-            value={formData.challenge_other || ""}
-            onChange={(e) => setFormData({ ...formData, challenge_other: e.target.value })}
+            value={challengeOther}
+            onChange={(e) => setChallengeOther(e.target.value)}
             placeholder="具体的にお書きください"
             rows={3}
             style={{
@@ -481,8 +484,8 @@ export default function SurveyPage() {
           </label>
           <textarea
             name="expectation_other"
-            value={formData.expectation_other || ""}
-            onChange={(e) => setFormData({ ...formData, expectation_other: e.target.value })}
+            value={expectationOther}
+            onChange={(e) => setExpectationOther(e.target.value)}
             placeholder="具体的にお書きください"
             rows={3}
             style={{
@@ -535,12 +538,17 @@ export default function SurveyPage() {
     if (step < 3) {
       setStep((step + 1) as 1 | 2 | 3);
     } else {
-      // フォーム送信
+      // フォーム送信（個別stateをマージ）
       try {
+        const submitData = {
+          ...formData,
+          challenge_other: challengeOther || undefined,
+          expectation_other: expectationOther || undefined,
+        };
         const response = await fetch("/api/form", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(submitData),
         });
 
         const data = await response.json();
