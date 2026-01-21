@@ -174,8 +174,8 @@ export default function SurveyPage() {
         </div>
       </div>
 
-      {/* 大学設置形態（任意・教員のみ） */}
-      {formData.respondent_type === "faculty" && (
+      {/* 大学設置形態（任意・教員・学生のみ） */}
+      {(formData.respondent_type === "faculty" || formData.respondent_type === "student") && (
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: "block", fontWeight: 600, marginBottom: 12 }}>
             大学の設置形態 <span style={{ color: "#999", fontSize: 14 }}>（任意）</span>
