@@ -22,6 +22,7 @@ interface FormResponse {
   expectation_other: string | null;
   has_chat_log: boolean;
   chat_summary: string[] | null;
+  is_chat_only?: boolean;
 }
 
 const TABS = ["overview", "list"] as const;
@@ -130,11 +131,14 @@ function AdminFormsContent() {
       if (filterRespondentType !== "all" && r.respondent_type_code !== filterRespondentType) {
         return false;
       }
-      if (filterChallenge !== "all" && !r.challenges.includes(filterChallenge)) {
-        return false;
-      }
-      if (filterExpectation !== "all" && !r.expectations.includes(filterExpectation)) {
-        return false;
+      // チャットのみは課題・期待フィルタを無視
+      if (!r.is_chat_only) {
+        if (filterChallenge !== "all" && !r.challenges.includes(filterChallenge)) {
+          return false;
+        }
+        if (filterExpectation !== "all" && !r.expectations.includes(filterExpectation)) {
+          return false;
+        }
       }
       return true;
     });
@@ -250,6 +254,8 @@ function AdminFormsContent() {
                   <option value="faculty">教員</option>
                   <option value="staff">職員</option>
                   <option value="student">学生</option>
+                  <option value="practitioner">医療者</option>
+                  <option value="chat_only">チャットのみ</option>
                 </select>
               </div>
               <div>
@@ -308,19 +314,31 @@ function AdminFormsContent() {
                       </div>
                     </td>
                     <td style={{ padding: 10, border: "1px solid var(--border)", fontSize: 13 }}>
-                      <div>{r.challenges.join("、")}</div>
-                      {r.challenge_other && (
-                        <div style={{ color: "#666", fontSize: 12 }}>
-                          （その他: {r.challenge_other}）
-                        </div>
+                      {r.is_chat_only ? (
+                        <span style={{ color: "#999" }}>-</span>
+                      ) : (
+                        <>
+                          <div>{r.challenges.join("、") || "-"}</div>
+                          {r.challenge_other && (
+                            <div style={{ color: "#666", fontSize: 12 }}>
+                              （その他: {r.challenge_other}）
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td style={{ padding: 10, border: "1px solid var(--border)", fontSize: 13 }}>
-                      <div>{r.expectations.join("、")}</div>
-                      {r.expectation_other && (
-                        <div style={{ color: "#666", fontSize: 12 }}>
-                          （その他: {r.expectation_other}）
-                        </div>
+                      {r.is_chat_only ? (
+                        <span style={{ color: "#999" }}>-</span>
+                      ) : (
+                        <>
+                          <div>{r.expectations.join("、") || "-"}</div>
+                          {r.expectation_other && (
+                            <div style={{ color: "#666", fontSize: 12 }}>
+                              （その他: {r.expectation_other}）
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td style={{ padding: 10, border: "1px solid var(--border)", textAlign: "center" }}>

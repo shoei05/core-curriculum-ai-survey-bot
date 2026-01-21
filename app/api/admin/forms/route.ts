@@ -67,23 +67,57 @@ export async function GET(req: Request) {
       );
     }
 
-    // survey_logsからチャットログの有無を確認
-    const { data: surveyLogs, error: logsError } = await (supabase as any)
+    // survey_logsからチャットのみの回答（template_slug="core-curriculum-2026-survey"）を取得
+    const { data: chatOnlyLogs, error: chatOnlyLogsError } = await (supabase as any)
+      .from("survey_logs")
+      .select("*")
+      .eq("template_slug", "core-curriculum-2026-survey")
+      .order("created_at", { ascending: false });
+
+    if (chatOnlyLogsError) {
+      console.error("Chat-only logs fetch error:", chatOnlyLogsError);
+    }
+
+    // form_responsesに紐づくチャットログの有無を確認
+    const { data: linkedLogs, error: linkedLogsError } = await (supabase as any)
       .from("survey_logs")
       .select("form_response_id, summary_bullets");
 
-    if (logsError) {
-      console.error("Survey logs fetch error:", logsError);
-      // ログ取得エラーは致命的ではないので続行
+    if (linkedLogsError) {
+      console.error("Linked survey logs fetch error:", linkedLogsError);
     }
 
     // チャットログの有無をマッピング
     const logMap = new Map(
-      (surveyLogs || []).map((log: any) => [log.form_response_id, log.summary_bullets])
+      (linkedLogs || []).map((log: any) => [log.form_response_id, log.summary_bullets])
     );
 
-    // レスポンスを変換
-    const responses = (formResponses || []).map((item: any) => {
+    // チャットのみの回答を2段階調査と同じ形式に変換
+    const chatOnlyResponses = (chatOnlyLogs || []).map((item: any) => ({
+      id: item.id,
+      session_id: item.session_id,
+      created_at: item.created_at,
+      respondent_type: "チャットのみ（回答者タイプ不明）",
+      respondent_type_code: "chat_only",
+      university_type: null,
+      university_type_code: null,
+      specialty: null,
+      experience_years: null,
+      student_year: null,
+      attribute: null,
+      challenges: [],
+      challenges_code: [],
+      challenge_other: null,
+      expectations: [],
+      expectations_code: [],
+      expectation_other: null,
+      has_chat_log: true,
+      chat_summary: item.summary_bullets || null,
+      is_chat_only: true, // チャットのみの回答であることを示すフラグ
+    }));
+
+    // レスポンスを変換（2段階調査）
+    const formResponsesData = (formResponses || []).map((item: any) => {
       // 専門分野/学年を統合した属性表示
       let attribute: string | null = null;
       if (item.respondent_type === "faculty" && item.specialty) {
@@ -122,7 +156,15 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json(responses);
+    // 2種類の調査回答を統合
+    const allResponses = [...formResponsesData, ...chatOnlyResponses];
+
+    // 作成日時でソート
+    allResponses.sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    return NextResponse.json(allResponses);
   } catch (error) {
     console.error("Forms API error:", error);
     return NextResponse.json(
