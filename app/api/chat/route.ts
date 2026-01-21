@@ -149,7 +149,7 @@ ${summaryData.bullets.map((b: string) => `• ${b}`).join("\n")}
   }
 
   // 通常のチャット処理
-  const apiMessages = [
+  const apiMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: systemPrompt },
     ...userAssistantMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
