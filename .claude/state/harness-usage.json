@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-01-19T23:59:33.396Z",
+  "updatedAt": "2026-01-20T05:35:42.299Z",
   "skills": {
     "cursor-mem": {
       "count": 1,
@@ -13,6 +13,10 @@
     "simple-review": {
       "count": 1,
       "lastUsed": "2026-01-19T23:59:33.394Z"
+    },
+    "skills-update": {
+      "count": 1,
+      "lastUsed": "2026-01-20T01:42:18.708Z"
     }
   },
   "commands": {
@@ -23,8 +27,18 @@
     "codex-review": {
       "count": 2,
       "lastUsed": "2026-01-19T09:37:26.035Z"
+    },
+    "plan-with-agent": {
+      "count": 1,
+      "lastUsed": "2026-01-20T04:52:57.297Z"
     }
   },
   "agents": {},
-  "hooks": {}
+  "hooks": {
+    "pretooluse-guard": {
+      "triggered": 8,
+      "blocked": 8,
+      "lastTriggered": "2026-01-20T05:35:42.297Z"
+    }
+  }
 }

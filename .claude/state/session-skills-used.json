@@ -2,8 +2,9 @@
   "used": [
     "claude-code-harness:cursor-mem",
     "codex-review",
-    "simple-review"
+    "simple-review",
+    "claude-code-harness:optional:skills-update"
   ],
   "session_start": "2026-01-19T21:52:32Z",
-  "last_used": "2026-01-19T23:59:33Z"
+  "last_used": "2026-01-20T01:42:18Z"
 }

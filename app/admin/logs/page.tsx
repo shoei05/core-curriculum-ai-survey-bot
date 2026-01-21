@@ -19,10 +19,13 @@ interface SurveyLog {
 }
 
 const MarkdownContent = ({ content }: { content: string }) => {
+    // 全角文字と**の間にゼロ幅スペースを挿入してマークダウンパーサーを助ける
     const normalizeMarkdown = (text: string) => {
         return text
-            .replace(/\*\*([^\s*])/g, '** $1')
-            .replace(/([^\s*])\*\*/g, '$1 **');
+            // **の直後の全角文字の前にゼロ幅スペースを挿入
+            .replace(/\*\*([^\s*\u200B])/g, '**\u200B$1')
+            // **の直前の全角文字の後にゼロ幅スペースを挿入
+            .replace(/([^\s*\u200B])\*\*/g, '$1\u200B**');
     };
 
     return (

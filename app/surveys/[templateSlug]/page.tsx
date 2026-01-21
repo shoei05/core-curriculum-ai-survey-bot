@@ -47,10 +47,13 @@ const createId = () => {
 };
 
 const MarkdownContent = ({ content }: { content: string }) => {
+  // 全角文字と**の間にゼロ幅スペースを挿入してマークダウンパーサーを助ける
   const normalizeMarkdown = (text: string) => {
     return text
-      .replace(/\*\*([^\s*])/g, '** $1')
-      .replace(/([^\s*])\*\*/g, '$1 **');
+      // **の直後の全角文字の前にゼロ幅スペースを挿入
+      .replace(/\*\*([^\s*\u200B])/g, '**\u200B$1')
+      // **の直前の全角文字の後にゼロ幅スペースを挿入
+      .replace(/([^\s*\u200B])\*\*/g, '$1\u200B**');
   };
 
   return (
@@ -609,28 +612,6 @@ export default function SurveyPage({
         <h2>アンケート</h2>
       </header>
 
-      {showTimeUpOptions && (
-        <div className="alert time-up-options">
-          <p style={{ margin: "0 0 12px 0", fontWeight: 600 }}>⏰ 制限時間が終了しました。もう少し続けますか？</p>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button
-              onClick={handleExtend}
-              className="btn btn-primary"
-              style={{ padding: "10px 16px" }}
-            >
-              もう少し続ける (+3分)
-            </button>
-            <button
-              onClick={handleTimeUpEnd}
-              className="btn btn-ghost"
-              style={{ padding: "10px 16px", borderColor: "var(--accent)" }}
-            >
-              終了してサマライズ
-            </button>
-          </div>
-        </div>
-      )}
-
       {isExpired && !showTimeUpOptions && (
         <div className="alert">
           ⏰ 制限時間が終了しました。ご協力ありがとうございました。
@@ -963,9 +944,6 @@ export default function SurveyPage({
             <h3 style={{ margin: "0 0 16px 0", textAlign: "center", fontSize: "1.2rem" }}>
               もう少し続けますか？
             </h3>
-            <p style={{ margin: "0 0 16px 0", textAlign: "center", color: "#666", lineHeight: "1.8" }}>
-              あと1分で自動的に終了します（残り{extendConfirmCountdown}秒）
-            </p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
               <button
                 onClick={handleSkipExtend}
@@ -982,6 +960,9 @@ export default function SurveyPage({
                 もう少し続ける (+3分)
               </button>
             </div>
+            <p style={{ margin: "16px 0 0 0", textAlign: "center", color: "#666", fontSize: "0.85rem", lineHeight: "1.8" }}>
+              あと1分で自動的に終了します（残り{extendConfirmCountdown}秒）
+            </p>
           </div>
         </div>
       )}
