@@ -224,6 +224,8 @@ export async function POST(req: Request) {
           messages: insertPayload.messages,
           summary_bullets: insertPayload.summary_bullets,
           keyword_groups: insertPayload.keyword_groups,
+          issue_categories: insertPayload.issue_categories,
+          competency_categories: insertPayload.competency_categories,
           core_items: insertPayload.core_items
         };
 
@@ -237,7 +239,9 @@ export async function POST(req: Request) {
             ended_at: insertPayload.ended_at,
             messages: insertPayload.messages,
             summary_bullets: insertPayload.summary_bullets,
-            keyword_groups: insertPayload.keyword_groups
+            keyword_groups: insertPayload.keyword_groups,
+            issue_categories: insertPayload.issue_categories,
+            competency_categories: insertPayload.competency_categories
           };
           const { error: minimalError } = await supabaseTable.insert([minimalPayload]);
           if (minimalError) {
