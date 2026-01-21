@@ -188,6 +188,82 @@ function AdminFormsContent() {
   const challengeOptions = Array.from(new Set(responses.flatMap((r) => r.challenges)));
   const expectationOptions = Array.from(new Set(responses.flatMap((r) => r.expectations)));
 
+  // BI集計データ
+  const statsData = useMemo(() => {
+    // 回答者タイプ分布
+    const typeCounts: Record<string, number> = {};
+    const typeLabels: Record<string, string> = {};
+    responses.forEach((r) => {
+      const type = r.respondent_type_code || "unknown";
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+      typeLabels[type] = r.respondent_type;
+    });
+    const typeDistribution = Object.entries(typeCounts)
+      .map(([type, count]) => ({
+        type,
+        label: typeLabels[type],
+        count,
+        percent: responses.length > 0 ? (count / responses.length) * 100 : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // 課題認識ランキング（チャットのみ除く）
+    const challengeCounts: Record<string, number> = {};
+    responses.forEach((r) => {
+      if (!r.is_chat_only) {
+        r.challenges.forEach((c) => {
+          challengeCounts[c] = (challengeCounts[c] || 0) + 1;
+        });
+      }
+    });
+    const challengeRanking = Object.entries(challengeCounts)
+      .map(([challenge, count]) => ({ challenge, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // 期待ランキング（チャットのみ除く）
+    const expectationCounts: Record<string, number> = {};
+    responses.forEach((r) => {
+      if (!r.is_chat_only) {
+        r.expectations.forEach((e) => {
+          expectationCounts[e] = (expectationCounts[e] || 0) + 1;
+        });
+      }
+    });
+    const expectationRanking = Object.entries(expectationCounts)
+      .map(([expectation, count]) => ({ expectation, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // チャートあり/なし
+    const withChat = responses.filter((r) => r.has_chat_log).length;
+    const withoutChat = responses.length - withChat;
+
+    // 日別回答数（最近7日）
+    const dailyCounts: Record<string, number> = {};
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    responses.forEach((r) => {
+      const date = new Date(r.created_at).toLocaleDateString("ja-JP");
+      dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+    });
+    const dailyData = Object.entries(dailyCounts)
+      .map(([date, count]) => ({ date, count }))
+      .slice(-7);
+
+    return {
+      typeDistribution,
+      challengeRanking,
+      expectationRanking,
+      chatRate: {
+        with: withChat,
+        without: withoutChat,
+        withPercent: responses.length > 0 ? (withChat / responses.length) * 100 : 0,
+      },
+      dailyData,
+    };
+  }, [responses]);
+
   return (
     <div>
       {/* ヘッダー */}
@@ -231,6 +307,152 @@ function AdminFormsContent() {
             <h3 style={{ marginBottom: 16 }}>総回答数</h3>
             <div style={{ fontSize: "3rem", fontWeight: 700, color: "var(--accent)" }}>
               {responses.length.toLocaleString()}<span style={{ fontSize: "1.5rem", marginLeft: 8 }}>件</span>
+            </div>
+          </div>
+
+          {/* BIダッシュボード */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+            {/* 回答者タイプ分布 */}
+            <div className="consent-card" style={{ padding: 20 }}>
+              <h4 style={{ marginBottom: 16 }}>回答者タイプ分布</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {statsData.typeDistribution.map((item) => (
+                  <div key={item.type}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 14 }}>{item.label}</span>
+                      <span style={{ fontSize: 13, color: "#666" }}>{item.count}件 ({item.percent.toFixed(1)}%)</span>
+                    </div>
+                    <div style={{ height: 8, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          height: "100%",
+                          width: `${item.percent}%`,
+                          background: `hsl(210, 70%, 50%)`,
+                          borderRadius: 4,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* チャットあり/なし */}
+            <div className="consent-card" style={{ padding: 20 }}>
+              <h4 style={{ marginBottom: 16 }}>チャットログ</h4>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 14 }}>あり</span>
+                    <span style={{ fontSize: 13, color: "#666" }}>{statsData.chatRate.with}件 ({statsData.chatRate.withPercent.toFixed(1)}%)</span>
+                  </div>
+                  <div style={{ height: 8, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${statsData.chatRate.withPercent}%`,
+                        background: "#28a745",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 14 }}>なし</span>
+                    <span style={{ fontSize: 13, color: "#666" }}>{statsData.chatRate.without}件 ({(100 - statsData.chatRate.withPercent).toFixed(1)}%)</span>
+                  </div>
+                  <div style={{ height: 8, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${100 - statsData.chatRate.withPercent}%`,
+                        background: "#dc3545",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 課題認識・期待ランキング */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+            {/* 課題認識トップ5 */}
+            <div className="consent-card" style={{ padding: 20 }}>
+              <h4 style={{ marginBottom: 16 }}>課題認識 Top 5</h4>
+              {statsData.challengeRanking.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {statsData.challengeRanking.map((item, idx) => (
+                    <div key={item.challenge} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: idx < 3 ? "#ffd700" : "#f0f0f0",
+                        borderRadius: "50%",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}>{idx + 1}</span>
+                      <div style={{ flex: 1, height: 6, background: "#f0f0f0", borderRadius: 3 }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${(item.count / statsData.challengeRanking[0].count) * 100}%`,
+                            background: `hsl(0, 70%, ${60 - idx * 10}%)`,
+                            borderRadius: 3,
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 13, minWidth: 40, textAlign: "right" }}>{item.count}</span>
+                      <span style={{ fontSize: 12, color: "#666", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.challenge}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: "#999", fontSize: 14 }}>データがありません</p>
+              )}
+            </div>
+
+            {/* 期待トップ5 */}
+            <div className="consent-card" style={{ padding: 20 }}>
+              <h4 style={{ marginBottom: 16 }}>期待 Top 5</h4>
+              {statsData.expectationRanking.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {statsData.expectationRanking.map((item, idx) => (
+                    <div key={item.expectation} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: idx < 3 ? "#ffd700" : "#f0f0f0",
+                        borderRadius: "50%",
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}>{idx + 1}</span>
+                      <div style={{ flex: 1, height: 6, background: "#f0f0f0", borderRadius: 3 }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${(item.count / statsData.expectationRanking[0].count) * 100}%`,
+                            background: `hsl(140, 70%, ${60 - idx * 10}%)`,
+                            borderRadius: 3,
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 13, minWidth: 40, textAlign: "right" }}>{item.count}</span>
+                      <span style={{ fontSize: 12, color: "#666", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.expectation}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: "#999", fontSize: 14 }}>データがありません</p>
+              )}
             </div>
           </div>
         </div>
