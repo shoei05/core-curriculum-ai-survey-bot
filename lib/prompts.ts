@@ -1,6 +1,7 @@
 // コアカリ改定調査 システムプロンプト定義
 
 import type { RespondentType, FormResponse } from '@/types/survey';
+import { getKnowledgePrompt } from './knowledge';
 
 // 共通ベースプロンプト
 const BASE_PROMPT = `あなたは医学教育モデル・コア・カリキュラム改定に向けた調査を行うインタビュアーです。
@@ -92,16 +93,28 @@ export function generateInterviewPrompt(
   respondentType: RespondentType,
   formData: Partial<FormResponse>
 ): string {
+  // 知識ベース（RAG）を取得
+  const knowledgePrompt = getKnowledgePrompt();
+
+  let basePrompt: string;
   switch (respondentType) {
     case 'faculty':
-      return generateFacultyPrompt(formData);
+      basePrompt = generateFacultyPrompt(formData);
+      break;
     case 'staff':
-      return generateStaffPrompt(formData);
+      basePrompt = generateStaffPrompt(formData);
+      break;
     case 'student':
-      return generateStudentPrompt(formData);
+      basePrompt = generateStudentPrompt(formData);
+      break;
     default:
-      return BASE_PROMPT;
+      basePrompt = BASE_PROMPT;
   }
+
+  // 知識ベースを追加
+  return `${basePrompt}
+
+${knowledgePrompt}`;
 }
 
 // 最初の挨拶メッセージ生成

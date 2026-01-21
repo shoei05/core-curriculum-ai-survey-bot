@@ -429,9 +429,9 @@ export default function ChatPage() {
     }
   };
 
-  // Enterキーで送信
+  // Cmd+Enter または Shift+Enter で送信、Enter は改行
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && (e.metaKey || e.shiftKey)) {
       e.preventDefault();
       handleSend();
     }
@@ -540,7 +540,7 @@ export default function ChatPage() {
           <p className="note">
             {isEnded
               ? "※終了しました。サマリーをご確認ください。"
-              : "※Enter キーで送信、Shift + Enter で改行。個人を特定する情報は入力しないでください。"}
+              : "※Cmd + Enter または Shift + Enter で送信。個人を特定する情報は入力しないでください。"}
           </p>
         </section>
 
