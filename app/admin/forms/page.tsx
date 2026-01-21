@@ -314,6 +314,9 @@ function AdminFormsContent() {
           </div>
 
           {/* BIダッシュボード */}
+          {statsData.typeDistribution.length > 0 && (
+          <>
+          {/* 回答者タイプ分布・チャットログ */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
             {/* 回答者タイプ分布 */}
             <div className="consent-card" style={{ padding: 20 }}>
@@ -458,6 +461,8 @@ function AdminFormsContent() {
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
       )}
 
