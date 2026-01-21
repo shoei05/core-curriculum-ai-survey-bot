@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { PCAScatterPlot } from "@/components/PCAScatterPlot";
-import { CrossTabulationTable } from "@/components/CrossTabulationTable";
 
 interface FormResponse {
   id: string;
@@ -26,19 +24,7 @@ interface FormResponse {
   chat_summary: string[] | null;
 }
 
-interface PCAPoint {
-  id: string;
-  respondent_type: string;
-  x: number;
-  y: number;
-}
-
-interface PCAResponse {
-  points: PCAPoint[];
-  explainedVariance: number[];
-}
-
-const TABS = ["overview", "cross-tab", "pca", "list"] as const;
+const TABS = ["overview", "list"] as const;
 type Tab = (typeof TABS)[number];
 
 function AdminFormsContent() {
@@ -48,8 +34,6 @@ function AdminFormsContent() {
   const [responses, setResponses] = useState<FormResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [pcaData, setPcaData] = useState<PCAResponse | null>(null);
-  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
 
   // フィルタ状態
   const [filterRespondentType, setFilterRespondentType] = useState<string>("all");
@@ -76,15 +60,6 @@ function AdminFormsContent() {
       if (formsRes.ok) {
         const data = await formsRes.json();
         setResponses(data);
-      }
-
-      // PCAデータを取得
-      const pcaRes = await fetch(
-        `/api/admin/forms/pca?password=${sessionStorage.getItem("adminPassword") || ""}`
-      );
-      if (pcaRes.ok) {
-        const pcaData = await pcaRes.json();
-        setPcaData(pcaData);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -165,32 +140,13 @@ function AdminFormsContent() {
     });
   }, [responses, filterRespondentType, filterChallenge, filterExpectation]);
 
-  // 統計データ
-  const stats = useMemo(() => {
-    const byType: Record<string, number> = {};
-    const challengeCounts: Record<string, number> = {};
-    const expectationCounts: Record<string, number> = {};
-
-    responses.forEach((r) => {
-      byType[r.respondent_type_code] = (byType[r.respondent_type_code] || 0) + 1;
-      r.challenges.forEach((c) => {
-        challengeCounts[c] = (challengeCounts[c] || 0) + 1;
-      });
-      r.expectations.forEach((e) => {
-        expectationCounts[e] = (expectationCounts[e] || 0) + 1;
-      });
-    });
-
-    return { byType, challengeCounts, expectationCounts };
-  }, [responses]);
-
   if (!isAuthenticated) {
     return (
       <div style={{ maxWidth: 400, margin: "100px auto", padding: 24 }}>
         <div className="consent-card">
           <h2 style={{ textAlign: "center", marginBottom: 24 }}>管理者ログイン</h2>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+            <label style={{ display: "block", marginBottom: 8, fontWeight: 600, fontSize: "1rem" }}>
               パスワード
             </label>
             <input
@@ -200,15 +156,19 @@ function AdminFormsContent() {
               onKeyPress={(e) => e.key === "Enter" && handleLogin()}
               style={{
                 width: "100%",
-                padding: 12,
+                padding: 16,
                 border: "1px solid #ddd",
                 borderRadius: 6,
-                fontSize: 1,
+                fontSize: "1.1rem",
               }}
+              placeholder="管理パスワードを入力"
               autoFocus
             />
+            <p style={{ fontSize: "0.85rem", color: "#666", marginTop: 8 }}>
+              環境変数 ADMIN_PASSWORD で設定されたパスワードを入力してください
+            </p>
           </div>
-          <button onClick={handleLogin} className="btn btn-primary" style={{ width: "100%" }}>
+          <button onClick={handleLogin} className="btn btn-primary" style={{ width: "100%", padding: 14, fontSize: "1rem" }}>
             ログイン
           </button>
         </div>
@@ -254,8 +214,6 @@ function AdminFormsContent() {
             }}
           >
             {tab === "overview" && "概要"}
-            {tab === "cross-tab" && "クロス集計"}
-            {tab === "pca" && "PCA分析"}
             {tab === "list" && "回答一覧"}
           </button>
         ))}
@@ -264,110 +222,13 @@ function AdminFormsContent() {
       {/* 概要タブ */}
       {activeTab === "overview" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* 回答者タイプ分布 */}
-          <div className="consent-card">
-            <h3>回答者タイプ分布</h3>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-              {Object.entries(stats.byType).map(([type, count]) => {
-                const labels: Record<string, string> = { faculty: "教員", staff: "職員", student: "学生" };
-                const colors: Record<string, string> = { faculty: "#3498db", staff: "#2ecc71", student: "#e74c3c" };
-                const percent = ((count / responses.length) * 100).toFixed(1);
-                return (
-                  <div key={type} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: colors[type] }} />
-                    <span>{labels[type]}: </span>
-                    <strong>{count}</strong>
-                    <span className="note">({percent}%)</span>
-                  </div>
-                );
-              })}
+          {/* 総回答数 */}
+          <div className="consent-card" style={{ textAlign: "center", padding: 32 }}>
+            <h3 style={{ marginBottom: 16 }}>総回答数</h3>
+            <div style={{ fontSize: "3rem", fontWeight: 700, color: "var(--accent)" }}>
+              {responses.length.toLocaleString()}<span style={{ fontSize: "1.5rem", marginLeft: 8 }}>件</span>
             </div>
           </div>
-
-          {/* 課題認識ランキング */}
-          <div className="consent-card">
-            <h3>課題認識 選択回数ランキング</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {Object.entries(stats.challengeCounts)
-                .sort(([, a], [, b]) => b - a)
-                .map(([label, count]) => {
-                  const percent = ((count / responses.length) * 100).toFixed(1);
-                  return (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 200 }}>{label}</div>
-                      <div style={{ flex: 1, height: 24, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${percent}%`, height: "100%", background: "var(--accent)", transition: "width 0.3s" }} />
-                      </div>
-                      <div style={{ width: 80, textAlign: "right" }}>
-                        {count} <span className="note">({percent}%)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-
-          {/* 期待ランキング */}
-          <div className="consent-card">
-            <h3>次期改定への期待 選択回数ランキング</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {Object.entries(stats.expectationCounts)
-                .sort(([, a], [, b]) => b - a)
-                .map(([label, count]) => {
-                  const percent = ((count / responses.length) * 100).toFixed(1);
-                  return (
-                    <div key={label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 200 }}>{label}</div>
-                      <div style={{ flex: 1, height: 24, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${percent}%`, height: "100%", background: "var(--accent)", transition: "width 0.3s" }} />
-                      </div>
-                      <div style={{ width: 80, textAlign: "right" }}>
-                        {count} <span className="note">({percent}%)</span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* クロス集計タブ */}
-      {activeTab === "cross-tab" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-          <div className="consent-card">
-            <h3>回答者タイプ × 課題認識</h3>
-            <CrossTabulationTable responses={responses} type="challenges" />
-          </div>
-          <div className="consent-card">
-            <h3>回答者タイプ × 次期改定への期待</h3>
-            <CrossTabulationTable responses={responses} type="expectations" />
-          </div>
-        </div>
-      )}
-
-      {/* PCAタブ */}
-      {activeTab === "pca" && (
-        <div className="consent-card">
-          <h3>PCA 2次元マップ</h3>
-          <p className="note" style={{ marginBottom: 16 }}>
-            回答者の選択パターンを2次元にマッピング。似た選択パターンの回答者は近くにプロットされます。
-          </p>
-          {pcaData && pcaData.points.length > 0 ? (
-            <PCAScatterPlot
-              points={pcaData.points}
-              explainedVariance={pcaData.explainedVariance}
-              onPointClick={(point) => {
-                setSelectedPointId(point.id);
-                const response = responses.find((r) => r.id === point.id);
-                if (response) {
-                  alert(`${response.respondent_type}\n課題: ${response.challenges.join("、")}\n期待: ${response.expectations.join("、")}`);
-                }
-              }}
-            />
-          ) : (
-            <p className="note">PCAには少なくとも3件のデータが必要です。</p>
-          )}
         </div>
       )}
 
@@ -435,7 +296,7 @@ function AdminFormsContent() {
               </thead>
               <tbody>
                 {filteredResponses.map((r) => (
-                  <tr key={r.id} style={{ background: selectedPointId === r.id ? "#fff3cd" : undefined }}>
+                  <tr key={r.id}>
                     <td style={{ padding: 10, border: "1px solid var(--border)", whiteSpace: "nowrap" }}>
                       {new Date(r.created_at).toLocaleString("ja-JP")}
                     </td>
