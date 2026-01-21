@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 // Zodスキーマでバリデーション
 const FormResponseSchema = z.object({
-  respondent_type: z.enum(["faculty", "staff", "student"]),
+  respondent_type: z.enum(["faculty", "staff", "student", "practitioner"]),
   university_type: z.enum(["national", "public", "private"]).optional(),
   specialty: z.enum(["basic", "clinical", "social", "education", "other"]).optional(),
   experience_years: z.enum(["under_5", "5_10", "over_10"]).optional(),
@@ -23,6 +23,7 @@ const FormResponseSchema = z.object({
     if (data.respondent_type === "student") {
       return data.student_year;
     }
+    // 事務職員・医療者は追加の必須項目なし
     return true;
   },
   {

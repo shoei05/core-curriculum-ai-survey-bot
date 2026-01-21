@@ -29,7 +29,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </Link>
                     <div style={{ display: "flex", gap: 16 }}>
                         <Link href="/admin" className="note" style={{ fontWeight: 600 }}>概要</Link>
-                        <Link href="/admin/logs" className="note" style={{ fontWeight: 600 }}>回答一覧</Link>
+                        <Link href="/admin/logs" className="note" style={{ fontWeight: 600 }}>チャット回答一覧</Link>
+                        <Link href="/admin/forms" className="note" style={{ fontWeight: 600 }}>フォーム回答</Link>
                     </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

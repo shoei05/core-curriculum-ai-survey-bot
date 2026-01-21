@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { getTemplateBySlug } from "@/lib/templates";
-import { generateInterviewPrompt, generateInitialGreeting, generateSummaryPrompt } from "@/lib/prompts";
+import { generateSummaryPrompt } from "@/lib/prompts";
 import type { FormResponse } from "@/types/survey";
 
 // 入力制限: メッセージ数とコンテンツ長の上限
@@ -23,11 +23,11 @@ const LegacyBodySchema = z.object({
 const SurveyBodySchema = z.object({
   sessionId: z.string().optional(),
   formResponseId: z.string().optional(),
-  respondentType: z.enum(["faculty", "staff", "student"]).optional(),
+  respondentType: z.enum(["faculty", "staff", "student", "practitioner"]).optional(),
   messages: z.array(MessageSchema).max(MAX_MESSAGES, `メッセージは${MAX_MESSAGES}件以下にしてください`),
   action: z.enum(["start", "chat"]).optional(),
   formData: z.object({
-    respondent_type: z.enum(["faculty", "staff", "student"]),
+    respondent_type: z.enum(["faculty", "staff", "student", "practitioner"]),
     specialty: z.string().optional(),
     experience_years: z.string().optional(),
     student_year: z.string().optional(),
@@ -79,19 +79,55 @@ async function handleSurveyChat(json: unknown) {
   const body = SurveyBodySchema.parse(json);
   const { respondentType, formData, action, messages } = body;
 
-  // フォームデータからプロンプト生成
-  const systemPrompt = formData
-    ? generateInterviewPrompt(respondentType || "faculty", formData as Partial<FormResponse>)
+  // core-curriculum-2026-survey テンプレート（RAG付き）を使用
+  const templateSlug = "core-curriculum-2026-survey";
+  const template = await getTemplateBySlug(templateSlug);
+
+  if (!template) {
+    return new Response(JSON.stringify({ error: "テンプレートが見つかりません" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json; charset=utf-8" }
+    });
+  }
+
+  // システムプロンプト（RAG付き）を使用
+  const baseSystemPrompt = template.systemPrompt;
+
+  // フォーム回答情報を追加（必要に応じて）
+  const formInfoText = formData && formData.challenges && formData.expectations
+    ? `\n\n【回答者様のフォーム回答】\n回答者タイプ: ${respondentType || "faculty"}\n現行の課題: ${(formData.challenges || []).join("、")}\n次期改定への期待: ${(formData.expectations || []).join("、")}\n\nこれらを踏まえて対話を進めてください。`
     : "";
+
+  const systemPrompt = baseSystemPrompt + formInfoText;
 
   const client = new OpenAI({
     apiKey: process.env.OPENROUTER_API_KEY,
     baseURL: "https://openrouter.ai/api/v1"
   });
 
-  // 開始時の挨拶
+  // 開始時の挨拶（フォーム回答内容を踏まえたもの）
   if (action === "start" || messages.length === 0) {
-    const greeting = generateInitialGreeting(respondentType || "faculty");
+    const typeLabels: Record<string, string> = {
+      faculty: "教員",
+      staff: "事務職員",
+      student: "学生",
+      practitioner: "医療者",
+    };
+
+    const typeLabel = typeLabels[respondentType || "faculty"];
+
+    // 選択した課題と期待を日本語に変換
+    const challengeLabels = formData?.challenges || [];
+    const expectationLabels = formData?.expectations || [];
+
+    let greeting = `本アンケートにご回答いただき、ありがとうございます。${typeLabel}としての視点でお話を伺います。\n\n`;
+
+    if (challengeLabels.length > 0) {
+      greeting += `アンケートでは「${challengeLabels.join("、")}」を課題として挙げていただきました。まず、これについてもう少し詳くお聞かせいただけますか？具体的にどのような場面で困っていると感じていますか？`;
+    } else {
+      greeting += `まず、現在の医学教育やモデル・コア・カリキュラムに関して、普段感じている課題やお困りごとがあれば教えていただけますか？`;
+    }
+
     return new Response(JSON.stringify({ message: greeting }), {
       headers: { "Content-Type": "application/json; charset=utf-8" }
     });

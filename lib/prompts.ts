@@ -122,7 +122,8 @@ export function generateInitialGreeting(respondentType: RespondentType): string 
   const greetings: Record<RespondentType, string> = {
     faculty: '本日はご協力ありがとうございます。コアカリ改定についてお伺いします。',
     staff: '本日はご多忙の中ご協力いただきありがとうございます。運営面のお気づきの点についてお伺いします。',
-    student: '協力ありがとう！率直な意見を聞かせてね。',
+    student: '本日はご協力ありがとうございます。学生の視点から率直なご意見をお聞かせください。',
+    practitioner: '本日はご協力ありがとうございます。現場の視点からお気づきの点をお伺いします。',
   };
   return greetings[respondentType];
 }

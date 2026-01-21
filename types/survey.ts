@@ -1,7 +1,7 @@
 // コアカリ改定調査システム 型定義
 
 // 回答者タイプ
-export type RespondentType = 'faculty' | 'staff' | 'student';
+export type RespondentType = 'faculty' | 'staff' | 'student' | 'practitioner';
 
 // 大学設置形態
 export type UniversityType = 'national' | 'public' | 'private';
@@ -15,22 +15,20 @@ export type ExperienceYears = 'under_5' | '5_10' | 'over_10';
 // 学生学年
 export type StudentYear = '1_2' | '3_4' | '5_6';
 
-// 課題認識選択肢
+// 課題認識選択肢（2026年次期改定調査向け）
 export type ChallengeCode =
   | 'content_overload'
   | 'lack_practice_time'
   | 'lack_educators'
-  | 'outdated_materials'
   | 'evaluation_issues'
-  | 'lack_ai_education'
+  | 'lack_genai_education'
   | 'other';
 
-// 次期改定への期待選択肢
+// 次期改定への期待選択肢（2026年次期改定調査向け）
 export type ExpectationCode =
   | 'goal_reduction'
   | 'clinical_enhancement'
-  | 'ai_digital'
-  | 'research_mind'
+  | 'genai_education'
   | 'evaluation_improvement'
   | 'interprofessional'
   | 'other';
@@ -137,22 +135,20 @@ export interface ChatResponse {
   isComplete?: boolean;
 }
 
-// 選択肢マスターラベル
+// 選択肢マスターラベル（2026年次期改定調査向け）
 export const CHALLENGE_LABELS: Record<ChallengeCode, string> = {
-  content_overload: '学修内容が多すぎる',
-  lack_practice_time: '実習時間が足りない',
-  lack_educators: '教員・指導者が足りない',
-  outdated_materials: '教材・設備が古い',
+  content_overload: 'コアカリの学修内容が多すぎる',
+  lack_practice_time: '臨床実習の時間が足りない',
+  lack_educators: '教員・指導者が不足している',
   evaluation_issues: '評価方法に課題がある',
-  lack_ai_education: 'AI/デジタル教育が不十分',
+  lack_genai_education: '生成AI活用教育が不十分',
   other: 'その他',
 };
 
 export const EXPECTATION_LABELS: Record<ExpectationCode, string> = {
-  goal_reduction: '学修目標の精選・削減',
+  goal_reduction: 'コアカリ学修目標の精選',
   clinical_enhancement: '臨床実習の充実',
-  ai_digital: 'AI/デジタル教育の充実',
-  research_mind: '研究マインドの涵養',
+  genai_education: '生成AI活用教育の充実',
   evaluation_improvement: '評価方法の改善',
   interprofessional: '多職種連携教育の充実',
   other: 'その他',
@@ -162,6 +158,7 @@ export const RESPONDENT_TYPE_LABELS: Record<RespondentType, string> = {
   faculty: '教員',
   staff: '事務職員',
   student: '学生',
+  practitioner: '医療者（医師・看護師等）',
 };
 
 export const UNIVERSITY_TYPE_LABELS: Record<UniversityType, string> = {

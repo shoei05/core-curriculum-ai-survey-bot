@@ -386,6 +386,29 @@ export default function SurveyPage() {
         ))}
       </div>
 
+      {formData.challenges?.includes("other") && (
+        <div style={{ marginTop: 16, padding: 16, background: "#f8f9fa", borderRadius: 8 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
+            その他の課題（自由記述）
+          </label>
+          <textarea
+            value={formData.challenge_other || ""}
+            onChange={(e) => setFormData({ ...formData, challenge_other: e.target.value })}
+            placeholder="具体的にお書きください"
+            rows={3}
+            style={{
+              width: "100%",
+              padding: 12,
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              fontSize: "0.95rem",
+              resize: "vertical",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      )}
+
       <p style={{ marginTop: 16, fontSize: 14, color: "#666" }}>
         選択数: {formData.challenges?.length || 0} / 3
       </p>
@@ -449,6 +472,29 @@ export default function SurveyPage() {
           </label>
         ))}
       </div>
+
+      {formData.expectations?.includes("other") && (
+        <div style={{ marginTop: 16, padding: 16, background: "#f8f9fa", borderRadius: 8 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 8 }}>
+            その他の期待（自由記述）
+          </label>
+          <textarea
+            value={formData.expectation_other || ""}
+            onChange={(e) => setFormData({ ...formData, expectation_other: e.target.value })}
+            placeholder="具体的にお書きください"
+            rows={3}
+            style={{
+              width: "100%",
+              padding: 12,
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              fontSize: "0.95rem",
+              resize: "vertical",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+      )}
 
       <p style={{ marginTop: 16, fontSize: 14, color: "#666" }}>
         選択数: {formData.expectations?.length || 0} / 3
