@@ -256,6 +256,18 @@ main {
   color: #fff;
 }
 
+.btn-secondary {
+  border-color: var(--border);
+  background: #fff;
+  color: var(--ink);
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
 .btn-ghost {
   background: #fff;
 }

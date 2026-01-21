@@ -22,21 +22,26 @@ export default async function Home() {
             教員向けの事前調査をチャット形式で回答できます。
             回答は要約とカテゴリ別キーワードに自動整理されます。
           </p>
-          {primaryTemplate && (
-            <div className="hero-actions">
-              <Link href={`/surveys/${primaryTemplate.slug}`} className="btn btn-primary">
-                このアンケートを開始
+          <div className="hero-actions">
+            <Link href="/survey" className="btn btn-primary" style={{ marginRight: 12 }}>
+              2段階調査を開始（新）
+            </Link>
+            {primaryTemplate && (
+              <Link href={`/surveys/${primaryTemplate.slug}`} className="btn btn-secondary">
+                チャットのみ
               </Link>
-              <span className="hero-hint">所要時間：約5分</span>
+            )}
+            <div style={{ marginTop: 8 }}>
+              <span className="hero-hint">所要時間：約10分（フォーム2-3分 + AIインタビュー5-7分）</span>
             </div>
-          )}
+          </div>
         </div>
         <div className="hero-card">
-          <div className="template-title">調査の流れ</div>
+          <div className="template-title">調査の流れ（2段階調査）</div>
           <ul className="consent-list" style={{ marginTop: 12 }}>
-            <li>同意確認後にAIが最初の質問を提示</li>
-            <li>回答に応じてAIが質問を進行</li>
-            <li>終了時に要約とキーワードを生成</li>
+            <li><strong>ステップ1：</strong>フォームで属性・課題・期待を選択（2-3分）</li>
+            <li><strong>ステップ2：</strong>AIが回答に基づいて深掘り質問（5-7分）</li>
+            <li><strong>完了：</strong>要約と次期改定要望を生成</li>
           </ul>
         </div>
       </section>
@@ -44,6 +49,17 @@ export default async function Home() {
       <section style={{ marginTop: 24 }}>
         <h2 className="panel-title">利用可能なアンケート</h2>
         <div className="template-grid">
+          {/* 2段階調査システム */}
+          <Link href="/survey" className="template-card" style={{ border: "2px solid var(--accent)" }}>
+            <div className="template-title" style={{ color: "var(--accent)" }}>2段階調査（新）</div>
+            <div className="template-description">
+              フォーム入力後、AIが個別に深掘り質問を行います。
+              教員・事務職員・学生それぞれの視点から収集します。
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+              約10分（フォーム2-3分 + AI 5-7分）
+            </div>
+          </Link>
           {templates.map((t) => (
             <Link
               key={t.slug}
