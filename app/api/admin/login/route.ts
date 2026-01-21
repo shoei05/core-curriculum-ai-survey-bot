@@ -3,11 +3,13 @@ import { ADMIN_COOKIE_NAME, createSessionValue, getAdminCredentials } from "@/li
 
 export async function POST(req: Request) {
     try {
-        const { user, pass } = await req.json();
+        const { password, user, pass } = await req.json();
         const creds = getAdminCredentials();
 
-        if (user === creds.user && pass === creds.pass) {
-            const sessionValue = createSessionValue(user, pass);
+        // パスワードのみの認証（フォームからはpasswordで送信）
+        const submittedPass = password || pass;
+        if (submittedPass === creds.pass) {
+            const sessionValue = createSessionValue(creds.user, creds.pass);
             const forwardedProto = req.headers.get("x-forwarded-proto");
             const isSecure = forwardedProto === "https" || new URL(req.url).protocol === "https:";
 
