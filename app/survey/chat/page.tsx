@@ -445,9 +445,9 @@ export default function ChatPage() {
       <a className="top-link" href="/survey">← 戻る</a>
 
       <header className="survey-header">
-        <h2>AIインタビュー</h2>
+        <h2>モデル・コア・カリキュラム改定事前調査</h2>
         <p style={{ color: "#666", fontSize: 14 }}>
-          次期コアカリ改定への要望をお聞かせください
+          現状課題・改定ニーズ・教育DX・評価・実習・AI活用等について対話形式で回答できます。
         </p>
       </header>
 
