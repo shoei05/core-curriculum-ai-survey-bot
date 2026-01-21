@@ -6,9 +6,14 @@ export default function Home() {
       <section className="home-hero">
         <div>
           <span className="pill">医学教育モデル・コア・カリキュラム 改定事前調査</span>
-          <h1 className="hero-title">
-            {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
-          </h1>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <h1 className="hero-title">
+              {process.env.NEXT_PUBLIC_APP_TITLE ?? "AI Survey Bot"}
+            </h1>
+            <a href="/admin" className="note" style={{ fontSize: "0.8rem", textDecoration: "underline" }}>
+              管理者
+            </a>
+          </div>
           <p className="hero-subtitle">
             教員・事務職員・学生・医療者の方々の視点から、
             現行コアカリの課題と次期改定への期待をお聞かせください。

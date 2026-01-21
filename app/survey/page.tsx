@@ -392,6 +392,7 @@ export default function SurveyPage() {
             その他の課題（自由記述）
           </label>
           <textarea
+            name="challenge_other"
             value={formData.challenge_other || ""}
             onChange={(e) => setFormData({ ...formData, challenge_other: e.target.value })}
             placeholder="具体的にお書きください"
@@ -479,6 +480,7 @@ export default function SurveyPage() {
             その他の期待（自由記述）
           </label>
           <textarea
+            name="expectation_other"
             value={formData.expectation_other || ""}
             onChange={(e) => setFormData({ ...formData, expectation_other: e.target.value })}
             placeholder="具体的にお書きください"
