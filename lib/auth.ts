@@ -12,7 +12,7 @@ export function validateEnvConfig(): { valid: boolean; missing: string[] } {
 
     if (isProduction) {
         if (!process.env.ADMIN_USER) missing.push("ADMIN_USER");
-        if (!process.env.ADMIN_PASS) missing.push("ADMIN_PASS");
+        if (!process.env.ADMIN_PASSWORD) missing.push("ADMIN_PASSWORD");
         if (!process.env.ADMIN_SESSION_SECRET) missing.push("ADMIN_SESSION_SECRET");
         if (!process.env.ADMIN_DELETE_KEY) missing.push("ADMIN_DELETE_KEY");
         if (!process.env.ADMIN_DOWNLOAD_KEY) missing.push("ADMIN_DOWNLOAD_KEY");
@@ -42,14 +42,14 @@ export function createSessionValue(user: string, pass: string) {
 export function getAdminCredentials() {
     return {
         user: process.env.ADMIN_USER || "admin",
-        pass: process.env.ADMIN_PASS || "password123",
+        pass: process.env.ADMIN_PASSWORD || "password123",
     };
 }
 
 export function getAdminKeys() {
     return {
-        deleteKey: process.env.ADMIN_DELETE_KEY || process.env.ADMIN_PASS || "password123",
-        downloadKey: process.env.ADMIN_DOWNLOAD_KEY || process.env.ADMIN_PASS || "password123",
+        deleteKey: process.env.ADMIN_DELETE_KEY || process.env.ADMIN_PASSWORD || "password123",
+        downloadKey: process.env.ADMIN_DOWNLOAD_KEY || process.env.ADMIN_PASSWORD || "password123",
     };
 }
 
