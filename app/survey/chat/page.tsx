@@ -79,6 +79,15 @@ const MarkdownContent = ({ content }: { content: string }) => {
   return <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{normalizeMarkdown(content)}</ReactMarkdown>;
 };
 
+const MicrophoneIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="voice-btn-icon">
+    <path
+      fill="currentColor"
+      d="M12 15.2a3.7 3.7 0 0 0 3.7-3.7V6.7a3.7 3.7 0 1 0-7.4 0v4.8a3.7 3.7 0 0 0 3.7 3.7Zm6-3.9a.9.9 0 1 1 1.8 0 7.8 7.8 0 0 1-6.9 7.7v2.1h2.2a.9.9 0 0 1 0 1.8H8.9a.9.9 0 0 1 0-1.8h2.2V19A7.8 7.8 0 0 1 4.2 11.3a.9.9 0 1 1 1.8 0 6 6 0 1 0 12 0Z"
+    />
+  </svg>
+);
+
 function getFallbackGreeting(respondentType?: string | null) {
   const greetings: Record<string, string> = {
     faculty: "ご回答ありがとうございます。まず、現場で課題を強く感じた具体的な場面を1つ教えてください。",
@@ -957,16 +966,16 @@ export default function ChatPage() {
         : "回答を入力してください...";
   const voiceStatusMessage = isRecording
     ? speechPreviewSupported
-      ? "録音中です。リアルタイム表示はブラウザ認識、停止後に Mistral で確定します。"
-      : "録音中です。もう一度押すか、90秒で自動停止します。停止後に Mistral で文字起こしします。"
+      ? "録音中です。リアルタイムで文字が表示されます。"
+      : "録音中です。もう一度押すか、90秒で自動停止します。"
     : isTranscribingAudio
       ? livePreviewText
-        ? "録音中のリアルタイム表示を保ったまま、Mistral で確定しています..."
+        ? "録音中のリアルタイム表示を保ったまま、文字起こししています..."
         : "Mistral で文字起こししています..."
       : voiceInputSupported
         ? speechPreviewSupported
-          ? "マイク入力とリアルタイム表示が使えます。停止後に Mistral の結果で更新されます。"
-          : "マイク入力が使えます。録音後、文字起こし結果が入力欄へ入ります。"
+          ? "マイク入力とリアルタイム表示が使えます。"
+          : "マイク入力が使えます。"
         : "このブラウザでは音声入力を利用できません。";
   const isVoicePreviewExpanded = isRecording || isTranscribingAudio || Boolean(livePreviewText);
   const shouldShowChatTransfer = summaryRequested || isEnded;
@@ -1054,9 +1063,12 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => void handleToggleRecording()}
                 disabled={!voiceInputSupported || isEnded || showExtendConfirmModal || isLoading}
-                className={`btn input-action-btn ${isRecording ? "voice-btn-recording" : "btn-ghost"}`}
+                className={`btn input-action-btn voice-btn ${
+                  isRecording ? "voice-btn-recording" : isTranscribingAudio ? "voice-btn-busy" : "voice-btn-idle"
+                }`}
               >
-                {isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中..." : "音声入力"}
+                <MicrophoneIcon />
+                <span>{isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中..." : "マイク入力"}</span>
               </button>
               <button type="submit" disabled={!input.trim() || isInputDisabled} className="btn btn-primary input-action-btn">
                 送信

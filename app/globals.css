@@ -448,10 +448,41 @@ main {
   min-height: 44px;
 }
 
+.voice-btn {
+  min-width: 138px;
+  padding: 11px 16px;
+  border-width: 1px;
+  font-weight: 700;
+}
+
+.voice-btn-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.voice-btn-idle {
+  border-color: #f0a4bf;
+  background: linear-gradient(135deg, #fff7fb 0%, #ffe8f2 100%);
+  color: var(--accent-deep);
+  box-shadow: 0 10px 22px rgba(197, 72, 123, 0.12);
+}
+
+.voice-btn-idle:hover {
+  box-shadow: 0 14px 28px rgba(197, 72, 123, 0.18);
+}
+
+.voice-btn-busy {
+  border-color: transparent;
+  background: linear-gradient(135deg, #f2a26b 0%, #d97745 100%);
+  color: #fff;
+}
+
 .voice-btn-recording {
   border-color: transparent;
   background: linear-gradient(135deg, #d85f4e 0%, #b7394f 100%);
   color: #fff;
+  box-shadow: 0 14px 28px rgba(183, 57, 79, 0.24);
 }
 
 .voice-btn-recording:hover {
