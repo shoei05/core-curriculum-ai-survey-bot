@@ -946,7 +946,7 @@ export default function ChatPage() {
   const inputPlaceholder = isRecording
     ? "録音中..."
     : isTranscribingAudio
-      ? "音声を文字起こし中..."
+      ? "音声を文字起こし・用語補正中..."
       : isEnded || showExtendConfirmModal
         ? "制限時間終了"
         : "回答を入力してください...";
@@ -956,8 +956,8 @@ export default function ChatPage() {
       : "録音中です。もう一度押すか、90秒で自動停止します。停止後に Mistral で文字起こしします。"
     : isTranscribingAudio
       ? livePreviewText
-        ? "録音中のリアルタイム表示を保ったまま、Mistral で確定しています..."
-        : "Mistral で文字起こししています..."
+        ? "録音中のリアルタイム表示を保ったまま、Mistral で確定し、用語補正しています..."
+        : "Mistral で文字起こしし、モデル・コア・カリキュラム用語を補正しています..."
       : voiceInputSupported
         ? speechPreviewSupported
           ? "マイク入力とリアルタイム表示が使えます。停止後に Mistral の結果で更新されます。"
