@@ -91,6 +91,9 @@ export default function AdminLoginPage() {
             </form>
 
             <div style={{ marginTop: 24, textAlign: "center" }}>
+                <p className="note" style={{ marginBottom: 12 }}>
+                    管理画面の認証には `ADMIN_USER` と `ADMIN_PASSWORD` の両方が必要です。
+                </p>
                 <a href="/" className="note">← トップページに戻る</a>
             </div>
         </div>

@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-// 管理者パスワード検証
-function verifyPassword(password: string): boolean {
-  return password === (process.env.ADMIN_PASSWORD || "admin123");
-}
-
 // 課題コードのリスト（2026年次期改定調査向け）
 const CHALLENGE_CODES = [
   "content_overload",
@@ -207,18 +202,10 @@ function selectionsToVector(challenges: string[], expectations: string[]): numbe
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
+export async function GET() {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-  }
-
-  // URLパラメータからパスワードを取得
-  const url = new URL(req.url);
-  const password = url.searchParams.get("password");
-
-  if (!password || !verifyPassword(password)) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
   try {

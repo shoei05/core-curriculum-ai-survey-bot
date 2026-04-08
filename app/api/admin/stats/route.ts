@@ -4,90 +4,84 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 
 export async function GET() {
+  try {
     const supabase = getSupabaseAdmin();
-    if (!supabase) {
-        return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-    }
-
     const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
 
-    try {
-        // 1. Get all logs for aggregation
-        // First try with core_items, fall back to without if column doesn't exist
-        let logs: any[] | null = null;
-        let error: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: logs, error } = await (supabase as any)
+      .from(tableName)
+      .select("*")
+      .order("created_at", { ascending: false });
 
-        try {
-            const result = await supabase
-                .from(tableName)
-                .select("template_slug, issue_categories, competency_categories, core_items")
-                .order("created_at", { ascending: false });
-            logs = result.data;
-            error = result.error;
-        } catch (e) {
-            error = e;
-        }
-
-        // If error, try without core_items column
-        if (error || !logs) {
-            console.warn("core_items column not found, retrying without it:", error?.message);
-            const result = await supabase
-                .from(tableName)
-                .select("template_slug, issue_categories, competency_categories")
-                .order("created_at", { ascending: false });
-            logs = result.data;
-            error = result.error;
-        }
-
-        if (error) throw error;
-
-        if (!logs) {
-            return NextResponse.json({
-                totalCount: 0,
-                slugDistribution: {},
-                issueDistribution: {},
-                competencyDistribution: {},
-                coreItemsDistribution: {},
-            });
-        }
-
-        const stats = {
-            totalCount: logs.length,
-            slugDistribution: {} as Record<string, number>,
-            issueDistribution: {} as Record<string, number>,
-            competencyDistribution: {} as Record<string, number>,
-            coreItemsDistribution: {} as Record<string, number>,
-        };
-
-        (logs as any[]).forEach((log) => {
-            // Slug dist
-            const slug = log.template_slug || "unknown";
-            stats.slugDistribution[slug] = (stats.slugDistribution[slug] || 0) + 1;
-
-            // Issue dist
-            const issues = log.issue_categories || [];
-            issues.forEach((group: any) => {
-                const cat = group.category;
-                stats.issueDistribution[cat] = (stats.issueDistribution[cat] || 0) + 1;
-            });
-
-            // Competency dist
-            const comps = log.competency_categories || [];
-            comps.forEach((group: any) => {
-                const cat = group.category;
-                stats.competencyDistribution[cat] = (stats.competencyDistribution[cat] || 0) + 1;
-            });
-
-            // Core items dist (only if available)
-            const coreItems = log.core_items || [];
-            coreItems.forEach((item: string) => {
-                stats.coreItemsDistribution[item] = (stats.coreItemsDistribution[item] || 0) + 1;
-            });
-        });
-
-        return NextResponse.json(stats);
-    } catch (error) {
-        console.error("Stats API error:", error);
-        return NextResponse.json({ error: "統計データの取得に失敗しました" }, { status: 500 });
+    if (error) {
+      throw error;
     }
+
+    const stats = {
+      totalCount: (logs ?? []).length,
+      analysisVersionDistribution: {} as Record<string, number>,
+      issueDistribution: {} as Record<string, number>,
+      competencyDistribution: {} as Record<string, number>,
+      coreItemsDistribution: {} as Record<string, number>,
+      sensitivityTopicDistribution: {} as Record<string, number>,
+    };
+
+    for (const log of logs ?? []) {
+      const analysisVersion = log.analysis_version || "legacy";
+      stats.analysisVersionDistribution[analysisVersion] = (stats.analysisVersionDistribution[analysisVersion] || 0) + 1;
+
+      const issueCategories = Array.isArray(log.participant_issue_categories)
+        ? log.participant_issue_categories
+        : Array.isArray(log.issue_categories)
+          ? log.issue_categories
+          : [];
+      for (const group of issueCategories) {
+        if (!group?.category) {
+          continue;
+        }
+        stats.issueDistribution[group.category] = (stats.issueDistribution[group.category] || 0) + 1;
+      }
+
+      const competencyCategories = Array.isArray(log.participant_competency_categories)
+        ? log.participant_competency_categories
+        : Array.isArray(log.competency_categories)
+          ? log.competency_categories
+          : [];
+      for (const group of competencyCategories) {
+        if (!group?.category) {
+          continue;
+        }
+        stats.competencyDistribution[group.category] = (stats.competencyDistribution[group.category] || 0) + 1;
+      }
+
+      const coreItems = Array.isArray(log.participant_core_items)
+        ? log.participant_core_items
+        : Array.isArray(log.core_items)
+          ? log.core_items
+          : [];
+      for (const item of coreItems) {
+        if (typeof item !== "string" || item.length === 0) {
+          continue;
+        }
+        stats.coreItemsDistribution[item] = (stats.coreItemsDistribution[item] || 0) + 1;
+      }
+
+      const sensitivityTopicGroups = Array.isArray(log.coding_sensitivity_topic_groups)
+        ? log.coding_sensitivity_topic_groups
+        : [];
+      for (const group of sensitivityTopicGroups) {
+        if (!group?.category) {
+          continue;
+        }
+        stats.sensitivityTopicDistribution[group.category] =
+          (stats.sensitivityTopicDistribution[group.category] || 0) + 1;
+      }
+    }
+
+    return NextResponse.json(stats);
+  } catch (error) {
+    console.error("Stats API error:", error);
+    return NextResponse.json({ error: "統計データの取得に失敗しました" }, { status: 500 });
+  }
 }

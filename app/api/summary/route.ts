@@ -1,224 +1,308 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { extractJson, formatTranscript } from "@/lib/survey-helpers";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import type { FormResponse, SummaryApiResponse } from "@/types/survey";
+
+const ANALYSIS_VERSION = "2026-04-08";
+
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1),
+});
 
 const BodySchema = z.object({
-  messages: z.array(z.object({
-    role: z.enum(["user", "assistant"]),
-    content: z.string()
-  })),
+  messages: z.array(MessageSchema).min(1),
   templateSlug: z.string().optional(),
   sessionId: z.string().optional(),
-  formResponseId: z.string().uuid().optional(),
+  formResponseId: z.string().optional(),
   startedAt: z.string().optional(),
-  endedAt: z.string().optional()
+  endedAt: z.string().optional(),
+  summaryScope: z.enum(["conversation_all", "participant_only"]).default("conversation_all"),
+  codingScope: z.enum(["participant_only", "conversation_all"]).default("participant_only"),
+  codingMethod: z.enum(["in_vivo", "topic"]).default("in_vivo"),
+  runSensitivityCoding: z.boolean().default(true),
 });
 
-const SummarySchema = z.object({
-  summaryBullets: z.array(z.string()).min(1),
-  keywordGroups: z.array(z.object({
-    category: z.string(),
-    keywords: z.array(z.string()).min(1)
-  })).min(1),
-  issueCategories: z.array(z.object({
-    category: z.string(),
-    items: z.array(z.string()).min(1)
-  })).optional().default([]),
-  competencyCategories: z.array(z.object({
-    category: z.string(),
-    items: z.array(z.string()).min(1)
-  })).optional().default([]),
-  coreItems: z.array(z.string()).optional()
+const TopicGroupSchema = z.object({
+  category: z.string().min(1),
+  keywords: z.array(z.string().min(1)).default([]),
 });
 
-const extractJson = (text: string) => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    // no-op
+const CategoryGroupSchema = z.object({
+  category: z.string().min(1),
+  items: z.array(z.string().min(1)).default([]),
+});
+
+const SummaryViewPayloadSchema = z.object({
+  summaryBullets: z.array(z.string().min(1)).min(1),
+  topicGroups: z.array(TopicGroupSchema).default([]),
+});
+
+const CodingPrimaryPayloadSchema = z.object({
+  inVivoCodes: z
+    .array(
+      z.object({
+        code: z.string().min(1),
+        quote: z.string().optional(),
+        messageIndex: z.coerce.number().int().optional(),
+      }),
+    )
+    .default([]),
+  issueCategories: z.array(CategoryGroupSchema).default([]),
+  competencyCategories: z.array(CategoryGroupSchema).default([]),
+  coreItems: z.array(z.string().min(1)).default([]),
+});
+
+const CodingSensitivityPayloadSchema = z.object({
+  topicGroups: z.array(TopicGroupSchema).default([]),
+});
+
+function normalizeTopicGroups(
+  groups: Array<{ category: string; keywords?: string[] }> | undefined,
+) {
+  return (groups ?? []).map((group) => ({
+    category: group.category,
+    keywords: group.keywords ?? [],
+  }));
+}
+
+function normalizeCategoryGroups(
+  groups: Array<{ category: string; items?: string[] }> | undefined,
+) {
+  return (groups ?? []).map((group) => ({
+    category: group.category,
+    items: group.items ?? [],
+  }));
+}
+
+function createClient() {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
-  const fenced = text.match(/```json\s*([\s\S]*?)\s*```/i);
-  if (fenced?.[1]) {
-    try {
-      return JSON.parse(fenced[1]);
-    } catch {
-      // no-op
-    }
-  }
-
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    try {
-      return JSON.parse(text.slice(firstBrace, lastBrace + 1));
-    } catch {
-      // no-op
-    }
-  }
-
-  return null;
-};
-
-const formatTranscript = (messages: { role: string; content: string }[]) =>
-  messages.map((m) => `${m.role === "user" ? "回答者" : "AI"}: ${m.content}`).join("\n");
-
-// Convert core item codes to boolean columns (e.g., "PR-01" -> { core_item_pr_01: true })
-const coreItemsToColumns = (coreItems: string[]): Record<string, boolean> => {
-  const columns: Record<string, boolean> = {};
-  coreItems.forEach(item => {
-    // Convert "PR-01" to "core_item_pr_01"
-    const columnName = `core_item_${item.toLowerCase().replace(/-/g, "_")}`;
-    columns[columnName] = true;
+  return new OpenAI({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: "https://openrouter.ai/api/v1",
   });
-  return columns;
-};
+}
+
+async function runJsonPrompt<T>(
+  client: OpenAI,
+  systemPrompt: string,
+  userPrompt: string,
+  schema: z.ZodSchema<T>,
+): Promise<T> {
+  const response = await client.chat.completions.create({
+    model: "google/gemini-3-flash-preview",
+    temperature: 0.2,
+    max_tokens: 900,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content ?? "";
+  const parsed = extractJson(content);
+  return schema.parse(parsed);
+}
+
+async function fetchRespondentType(formResponseId?: string) {
+  if (!formResponseId) {
+    return null;
+  }
+
+  const supabase = getSupabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any).from("form_responses").select("respondent_type").eq("id", formResponseId).single();
+  return (data as Partial<FormResponse> | null)?.respondent_type ?? null;
+}
+
+function buildParticipantMessages(messages: Array<{ role: "user" | "assistant"; content: string }>) {
+  return messages
+    .map((message, index) => ({ ...message, messageIndex: index }))
+    .filter((message) => message.role === "user");
+}
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const json = await req.json();
-    const body = BodySchema.parse(json);
-
-    if (body.messages.length === 0) {
-      return new Response(JSON.stringify({ error: "サマライズする会話がありません。" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    }
-
+    const body = BodySchema.parse(await req.json());
     const supabase = getSupabaseAdmin();
-    if (!supabase) {
-      console.error("Supabase admin client unavailable: missing env vars.");
-      return new Response(JSON.stringify({ error: "Supabase is not configured (missing env vars)" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    }
+    const client = createClient();
 
-    const client = new OpenAI({
-      apiKey: process.env.OPENROUTER_API_KEY,
-      baseURL: "https://openrouter.ai/api/v1"
-    });
+    const participantMessages = buildParticipantMessages(body.messages);
+    const assistantMessageCount = body.messages.filter((message) => message.role === "assistant").length;
+    const fullTranscript = formatTranscript(body.messages);
+    const participantTranscript = participantMessages
+      .map((message) => `[${message.messageIndex}] 参加者: ${message.content}`)
+      .join("\n");
 
-    const transcript = formatTranscript(body.messages);
+    const summaryPayload = await runJsonPrompt(
+      client,
+      "あなたは調査インタビューの記録整理者です。対象は会話全体です。出力はJSONのみで返してください。",
+      `以下の会話全体を、参加者にも読みやすいサマリーに整理してください。
 
-    const response = await client.chat.completions.create({
-      model: "google/gemini-3-flash-preview",
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "あなたは調査インタビューの記録整理者です。回答者の発言を中心に要点とカテゴリ化したキーワードを抽出します。出力は必ずJSONのみ。"
-        },
-        {
-          role: "user",
-          content:
-            `以下の会話履歴を要約し、カテゴリ化したキーワードを抽出してください。\n\n` +
-            `# 出力フォーマット（JSONのみ）\n` +
-            `{\n` +
-            `  "summaryBullets": ["要点1", "要点2", "要点3"],\n` +
-            `  "keywordGroups": [\n` +
-            `    { "category": "カテゴリ名", "keywords": ["キーワード1", "キーワード2"] }\n` +
-            `  ],\n` +
-            `  "issueCategories": [\n` +
-            `    { "category": "カリキュラム", "items": ["内容が多すぎる", "最新の医療に追いついていない"] },\n` +
-            `    { "category": "教授法", "items": ["実習時間が不足", "能動的学修が不十分"] },\n` +
-            `    { "category": "評価", "items": ["評価基準が不明確", "客観性に欠ける"] }\n` +
-            `  ],\n` +
-            `  "competencyCategories": [\n` +
-            `    { "category": "医学的知識", "items": ["基礎・臨床の統合", "最新のエビデンス"] },\n` +
-            `    { "category": "問題解決能力", "items": ["臨床推論", "クリティカルシンキング"] },\n` +
-            `    { "category": "コミュニケーション", "items": ["患者との対話", "チーム医療"] }\n` +
-            `  ],\n` +
-            `  "coreItems": ["PR-01", "GE-02"]\n` +
-            `}\n\n` +
-            `# 【重要】分類の作成（必須）\n` +
-            `以下の2つの分類は必ず作成してください。会話内容から該当するものを抽出・分類します。\n` +
-            `1. issueCategories（困り事・課題の分類）：回答者が挙げた「現状の課題・困りごと」をカテゴリ別に整理\n` +
-            `   - 例：「カリキュラム」「教授法」「評価」「人的資源」「時間・負担」\n` +
-            `   - 該当する内容がない場合は空配列[]を返してください\n` +
-            `2. competencyCategories（資質・能力の分類）：回答者が「重要だ」「育成すべき」と考えた「資質・能力」をカテゴリ別に整理\n` +
-            `   - 例：「医学的知識」「問題解決能力」「コミュニケーション」「倫理観」「チーム医療」\n` +
-            `   - 該当する内容がない場合は空配列[]を返してください\n\n` +
-            `# 制約\n` +
-            `- summaryBulletsは3〜5個（全体の要約）\n` +
-            `- keywordGroupsは3〜6カテゴリ、keywordsは各カテゴリ2〜6個、短い名詞中心\n` +
-            `- issueCategories/competencyCategoriesは各0〜4カテゴリ、itemsは各カテゴリ1〜4個\n` +
-            `- 回答者が挙げた具体例を各カテゴリのitemsに含めてください\n` +
-            `- coreItemsは会話内容に関連するモデル・コア・カリキュラムの項目コード（0〜10個程度）\n\n` +
-            `# 会話履歴\n` +
-            `${transcript}`
-        }
-      ]
-    });
+出力形式:
+{
+  "summaryBullets": ["要点1", "要点2"],
+  "topicGroups": [
+    { "category": "カテゴリ名", "keywords": ["キーワード1", "キーワード2"] }
+  ]
+}
 
-    const content = response.choices[0]?.message?.content ?? "";
-    const parsed = extractJson(content);
-    const summary = SummarySchema.safeParse(parsed);
+制約:
+- summaryBulletsは3〜5項目を目安に、会話全体の要点を簡潔にまとめる
+- topicGroupsは会話全体で観察された話題群を整理する
+- AI発話も会話の文脈として含めてよいが、参加者の主張を優先してまとめる
 
-    if (!summary.success) {
-      return new Response(JSON.stringify({ error: "サマライズ結果の解析に失敗しました。" }), {
-        status: 502,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    }
+会話:
+${fullTranscript}`,
+      SummaryViewPayloadSchema,
+    );
 
-    const payload = {
-      summaryBullets: summary.data.summaryBullets,
-      keywordGroups: summary.data.keywordGroups,
-      issueCategories: summary.data.issueCategories,
-      competencyCategories: summary.data.competencyCategories,
-      coreItems: summary.data.coreItems ?? []
+    const codingPrimaryPayload =
+      participantMessages.length === 0
+        ? {
+            inVivoCodes: [],
+            issueCategories: [],
+            competencyCategories: [],
+            coreItems: [],
+          }
+        : await runJsonPrompt(
+            client,
+            "あなたは質的研究の補助者です。対象は参加者発話のみです。主要分析として participant-only の in vivo coding を行い、JSONのみを返してください。",
+            `以下は参加者発話のみの記録です。括弧の数字は元メッセージ index です。
+
+出力形式:
+{
+  "inVivoCodes": [
+    { "code": "参加者の短い表現", "quote": "元発話の抜粋", "messageIndex": 3 }
+  ],
+  "issueCategories": [
+    { "category": "カテゴリ名", "items": ["項目1", "項目2"] }
+  ],
+  "competencyCategories": [
+    { "category": "カテゴリ名", "items": ["項目1", "項目2"] }
+  ],
+  "coreItems": ["PR-01"]
+}
+
+制約:
+- inVivoCodes は参加者自身の表現を短句として切り出す
+- quote は短い代表引用にする
+- messageIndex は括弧内の index をそのまま使う
+- issueCategories は参加者が述べた課題を整理する
+- competencyCategories は参加者が重要とみなした資質・能力を整理する
+- coreItems は関連するモデル・コア・カリキュラム項目コードがあれば入れる。なければ空配列でもよい
+
+参加者発話:
+${participantTranscript}`,
+            CodingPrimaryPayloadSchema,
+          );
+
+    const codingSensitivityPayload = body.runSensitivityCoding
+      ? await runJsonPrompt(
+          client,
+          "あなたは調査会話の感度分析を行う補助者です。対象は会話全体です。JSONのみを返してください。",
+          `以下の会話全体について、主要分析ではなく感度分析として descriptive/topic coding を行ってください。
+
+出力形式:
+{
+  "topicGroups": [
+    { "category": "カテゴリ名", "keywords": ["キーワード1", "キーワード2"] }
+  ]
+}
+
+制約:
+- AIの問いかけも含めた会話全体で観察された話題群を整理する
+- category は短い見出しにする
+- keywords は各カテゴリにつき2〜6語程度
+
+会話:
+${fullTranscript}`,
+          CodingSensitivityPayloadSchema,
+        )
+      : { topicGroups: [] };
+
+    const summaryResponse: SummaryApiResponse = {
+      summaryView: {
+        scope: body.summaryScope,
+        summaryBullets: summaryPayload.summaryBullets,
+        topicGroups: normalizeTopicGroups(summaryPayload.topicGroups),
+      },
+      codingPrimary: {
+        scope: body.codingScope,
+        method: body.codingMethod,
+        inVivoCodes: codingPrimaryPayload.inVivoCodes ?? [],
+        issueCategories: normalizeCategoryGroups(codingPrimaryPayload.issueCategories),
+        competencyCategories: normalizeCategoryGroups(codingPrimaryPayload.competencyCategories),
+        coreItems: codingPrimaryPayload.coreItems ?? [],
+      },
+      codingSensitivity: {
+        scope: "conversation_all",
+        method: "topic",
+        topicGroups: normalizeTopicGroups(codingSensitivityPayload.topicGroups),
+      },
+      analysisMeta: {
+        analysisVersion: ANALYSIS_VERSION,
+        messageCount: body.messages.length,
+        participantMessageCount: participantMessages.length,
+        assistantMessageCount,
+      },
     };
-
-    const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
-
-    // Convert core items to individual columns for easier aggregation
-    const coreItemColumns = coreItemsToColumns(payload.coreItems ?? []);
 
     const insertPayload = {
       template_slug: body.templateSlug ?? "two-stage-survey",
       session_id: body.sessionId ?? null,
       form_response_id: body.formResponseId ?? null,
+      respondent_type: await fetchRespondentType(body.formResponseId),
       started_at: body.startedAt ?? null,
       ended_at: body.endedAt ?? new Date().toISOString(),
       messages: body.messages,
-      summary_bullets: payload.summaryBullets,
-      keyword_groups: payload.keywordGroups,
-      issue_categories: payload.issueCategories,
-      competency_categories: payload.competencyCategories,
-      core_items: payload.coreItems,
-      ...coreItemColumns
+      summary_bullets: summaryResponse.summaryView.summaryBullets,
+      keyword_groups: summaryResponse.summaryView.topicGroups,
+      issue_categories: summaryResponse.codingPrimary.issueCategories,
+      competency_categories: summaryResponse.codingPrimary.competencyCategories,
+      core_items: summaryResponse.codingPrimary.coreItems,
+      conversation_summary_bullets: summaryResponse.summaryView.summaryBullets,
+      conversation_topic_groups: summaryResponse.summaryView.topicGroups,
+      participant_messages: participantMessages,
+      participant_in_vivo_codes: summaryResponse.codingPrimary.inVivoCodes,
+      participant_issue_categories: summaryResponse.codingPrimary.issueCategories,
+      participant_competency_categories: summaryResponse.codingPrimary.competencyCategories,
+      participant_core_items: summaryResponse.codingPrimary.coreItems,
+      coding_sensitivity_topic_groups: summaryResponse.codingSensitivity.topicGroups,
+      assistant_probe_tags: [],
+      summary_scope: summaryResponse.summaryView.scope,
+      coding_scope: summaryResponse.codingPrimary.scope,
+      coding_method: summaryResponse.codingPrimary.method,
+      analysis_version: ANALYSIS_VERSION,
     };
 
-    const supabaseTable = (supabase as unknown as {
-      from: (table: string) => {
-        insert: (values: Record<string, unknown>[]) => Promise<{ error: any | null }>;
-      };
-    }).from(tableName);
+    const tableName = process.env.SUPABASE_SURVEY_LOG_TABLE ?? "survey_logs";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let insertResult = await (supabase as any).from(tableName).insert([insertPayload]);
 
-    const { error: insertError } = await supabaseTable.insert([insertPayload]);
-
-    if (insertError) {
-      console.error("Supabase insert error:", insertError);
-
-      const errorMessage = String(insertError?.message ?? "");
-      const isMissingColumn =
+    if (insertResult.error) {
+      const errorMessage = String(insertResult.error.message ?? "");
+      const isMissingNewColumn =
         errorMessage.includes("column") &&
-        (errorMessage.includes("issue_categories") ||
-         errorMessage.includes("competency_categories") ||
-         errorMessage.includes("core_items") ||
-         errorMessage.includes("core_item_"));
+        (errorMessage.includes("conversation_summary_bullets") ||
+          errorMessage.includes("participant_messages") ||
+          errorMessage.includes("participant_in_vivo_codes") ||
+          errorMessage.includes("coding_sensitivity_topic_groups") ||
+          errorMessage.includes("summary_scope") ||
+          errorMessage.includes("analysis_version"));
 
-      if (isMissingColumn) {
-        // Retry with only basic columns (no issue/competency/core_items categories)
-        const fallbackPayload = {
+      if (isMissingNewColumn) {
+        const legacyPayload = {
           template_slug: insertPayload.template_slug,
           session_id: insertPayload.session_id,
           form_response_id: insertPayload.form_response_id,
+          respondent_type: insertPayload.respondent_type,
           started_at: insertPayload.started_at,
           ended_at: insertPayload.ended_at,
           messages: insertPayload.messages,
@@ -226,45 +310,18 @@ export async function POST(req: Request) {
           keyword_groups: insertPayload.keyword_groups,
           issue_categories: insertPayload.issue_categories,
           competency_categories: insertPayload.competency_categories,
-          core_items: insertPayload.core_items
+          core_items: insertPayload.core_items,
         };
-
-        const { error: retryError } = await supabaseTable.insert([fallbackPayload]);
-        if (retryError) {
-          console.error("Supabase insert retry error:", retryError);
-          // Try again with even fewer columns (no core_items, no form_response_id)
-          const minimalPayload = {
-            template_slug: insertPayload.template_slug,
-            started_at: insertPayload.started_at,
-            ended_at: insertPayload.ended_at,
-            messages: insertPayload.messages,
-            summary_bullets: insertPayload.summary_bullets,
-            keyword_groups: insertPayload.keyword_groups,
-            issue_categories: insertPayload.issue_categories,
-            competency_categories: insertPayload.competency_categories
-          };
-          const { error: minimalError } = await supabaseTable.insert([minimalPayload]);
-          if (minimalError) {
-            console.error("Supabase insert minimal retry error:", minimalError);
-          }
-        }
+        insertResult = await (supabase as any).from(tableName).insert([legacyPayload]);
       }
     }
 
-    console.info(JSON.stringify({
-      type: "survey_summary",
-      createdAt: new Date().toISOString(),
-      templateSlug: body.templateSlug ?? "core-curriculum-2026-survey",
-      summaryBullets: payload.summaryBullets,
-      keywordGroups: payload.keywordGroups,
-      issueCategories: payload.issueCategories,
-      competencyCategories: payload.competencyCategories,
-      coreItems: payload.coreItems,
-      messages: body.messages
-    }));
+    if (insertResult.error) {
+      console.error("Summary insert error:", insertResult.error);
+    }
 
-    return new Response(JSON.stringify(payload), {
-      headers: { "Content-Type": "application/json; charset=utf-8" }
+    return new Response(JSON.stringify(summaryResponse), {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (error) {
     console.error("Summary API Error:", error);
@@ -272,13 +329,13 @@ export async function POST(req: Request) {
     if (error instanceof z.ZodError) {
       return new Response(JSON.stringify({ error: "リクエストの形式が正しくありません" }), {
         status: 400,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
+        headers: { "Content-Type": "application/json; charset=utf-8" },
       });
     }
 
     return new Response(JSON.stringify({ error: "サーバーエラーが発生しました。しばらく待ってから再度お試しください。" }), {
       status: 502,
-      headers: { "Content-Type": "application/json; charset=utf-8" }
+      headers: { "Content-Type": "application/json; charset=utf-8" },
     });
   }
 }

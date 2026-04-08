@@ -1,127 +1,89 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import {
-  RESPONDENT_TYPE_LABELS,
-  UNIVERSITY_TYPE_LABELS,
-  SPECIALTY_LABELS,
-  EXPERIENCE_YEARS_LABELS,
-  STUDENT_YEAR_LABELS,
-  CHALLENGE_LABELS,
-  EXPECTATION_LABELS,
-} from "@/types/survey";
-
-// 管理者パスワード検証
-function verifyPassword(password: string): boolean {
-  return password === (process.env.ADMIN_PASSWORD || "admin123");
-}
-
-// コードを日本語ラベルに変換
-function codeToLabel<T extends Record<string, string>>(
-  labels: T,
-  code: string | string[] | null
-): string {
-  if (code === null || code === undefined) return "";
-  if (Array.isArray(code)) {
-    return code.map((c) => labels[c] || c).join("、");
-  }
-  return labels[code] || code;
-}
+  getChallengeLabels,
+  getExpectationLabels,
+  getExperienceLabel,
+  getRoleLabel,
+  getSpecialtyLabel,
+  getStudentYearLabel,
+  getUniversityLabel,
+  normalizeRoleArray,
+} from "@/lib/survey-helpers";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-  }
+function escapeCsv(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
 
-  // リクエストボディからパスワードを取得
-  const body = await req.json();
-  const { password } = body;
-
-  if (!password || !verifyPassword(password)) {
-    return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
-  }
-
+export async function POST() {
   try {
-    // form_responsesを取得
-    const { data: formResponses, error: formError } = await (supabase as any)
+    const supabase = getSupabaseAdmin();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: formResponses, error } = await (supabase as any)
       .from("form_responses")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (formError) {
-      console.error("Form responses fetch error:", formError);
-      return NextResponse.json(
-        { error: "フォームデータの取得に失敗しました" },
-        { status: 500 }
-      );
+    if (error) {
+      console.error("Form responses export error:", error);
+      return NextResponse.json({ error: "フォームデータの取得に失敗しました" }, { status: 500 });
     }
 
-    // CSVヘッダー（BOM付きUTF-8）
-    let csv = "\uFEFF"; // BOM
+    let csv = "\uFEFF";
+    csv += [
+      "回答日時",
+      "主たる立場",
+      "追加ロール",
+      "大学設置形態",
+      "専門分野",
+      "教育経験",
+      "学年",
+      "医療者の職種",
+      "職員の担当",
+      "課題認識",
+      "その他の課題",
+      "期待",
+      "その他の期待",
+      "同意取得",
+      "同意バージョン",
+      "同意日時",
+    ].join(",");
+    csv += "\n";
 
-    csv += "回答日時,IPアドレス,回答者タイプ,大学設置形態,専門分野,教育経験,学年,課題認識,その他の課題,期待,その他の期待,チャットログ有無\n";
-
-    // データ行
-    for (const item of formResponses || []) {
-      const row = [
-        // 回答日時
-        `"${new Date(item.created_at).toLocaleString("ja-JP")}"`,
-        // IPアドレス
-        `"${item.ip_address || "不明"}"`,
-        // 回答者タイプ
-        codeToLabel(RESPONDENT_TYPE_LABELS, item.respondent_type),
-        // 大学設置形態
-        codeToLabel(UNIVERSITY_TYPE_LABELS, item.university_type),
-        // 専門分野（教員のみ）
-        item.respondent_type === "faculty"
-          ? codeToLabel(SPECIALTY_LABELS, item.specialty)
-          : "",
-        // 教育経験（教員のみ）
-        item.respondent_type === "faculty"
-          ? codeToLabel(EXPERIENCE_YEARS_LABELS, item.experience_years)
-          : "",
-        // 学年（学生のみ）
-        item.respondent_type === "student"
-          ? codeToLabel(STUDENT_YEAR_LABELS, item.student_year)
-          : "",
-        // 課題認識（日本語ラベル）
-        `"${codeToLabel(CHALLENGE_LABELS, item.challenges)}"`,
-        // その他の課題
-        `"${(item.challenge_other || "").replace(/"/g, '""')}"`,
-        // 期待（日本語ラベル）
-        `"${codeToLabel(EXPECTATION_LABELS, item.expectations)}"`,
-        // その他の期待
-        `"${(item.expectation_other || "").replace(/"/g, '""')}"`,
-        // チャットログ有無（ survey_logsテーブルを確認）
-      ];
-
-      // チャットログの有無を確認
-      const { data: logData } = await (supabase as any)
-        .from("survey_logs")
-        .select("id")
-        .eq("form_response_id", item.id)
-        .single();
-
-      row.push(logData ? "あり" : "なし");
-
-      csv += row.join(",") + "\n";
+    for (const item of formResponses ?? []) {
+      csv += [
+        escapeCsv(new Date(item.created_at).toLocaleString("ja-JP")),
+        escapeCsv(getRoleLabel(item.respondent_type)),
+        escapeCsv(normalizeRoleArray(item.additional_roles).map((role) => getRoleLabel(role)).join(" / ")),
+        escapeCsv(getUniversityLabel(item.university_type)),
+        escapeCsv(getSpecialtyLabel(item.specialty)),
+        escapeCsv(getExperienceLabel(item.experience_years)),
+        escapeCsv(getStudentYearLabel(item.student_year)),
+        escapeCsv(item.practitioner_profession ?? ""),
+        escapeCsv(item.staff_role ?? ""),
+        escapeCsv(getChallengeLabels(item.challenges, item.challenge_other).join(" / ")),
+        escapeCsv(item.challenge_other ?? ""),
+        escapeCsv(getExpectationLabels(item.expectations, item.expectation_other).join(" / ")),
+        escapeCsv(item.expectation_other ?? ""),
+        escapeCsv(item.consent_given ? "true" : "false"),
+        escapeCsv(item.consent_version ?? ""),
+        escapeCsv(item.consented_at ?? ""),
+      ].join(",");
+      csv += "\n";
     }
 
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="form_responses_${new Date()
-          .toISOString()
-          .split("T")[0]}.csv"`,
+        "Content-Disposition": `attachment; filename="form_responses_${new Date().toISOString().split("T")[0]}.csv"`,
       },
     });
   } catch (error) {
     console.error("CSV Export error:", error);
-    return NextResponse.json(
-      { error: "CSV出力に失敗しました" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "CSV出力に失敗しました" }, { status: 500 });
   }
 }

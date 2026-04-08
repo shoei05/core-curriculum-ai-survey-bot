@@ -1,120 +1,120 @@
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
+import { extractJson } from "@/lib/survey-helpers";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getAdminCredentials } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
-  }
-
-  // パスワード検証
-  const { password } = await req.json();
-  const creds = getAdminCredentials();
-
-  if (password !== creds.pass) {
-    return NextResponse.json({ error: "認証に失敗しました" }, { status: 401 });
-  }
-
+export async function POST() {
   try {
-    // 未分類のログを取得（issue_categoriesが空または未定義のもの）
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json({ error: "OPENROUTER_API_KEY が設定されていません" }, { status: 500 });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const client = new OpenAI({
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: logs, error } = await (supabase as any)
       .from("survey_logs")
       .select("*")
-      .or("issue_categories.is.null,issue_categories.eq.[]")
+      .or("participant_issue_categories.is.null,participant_issue_categories.eq.[]")
       .order("created_at", { ascending: false })
-      .limit(1000);
+      .limit(500);
 
     if (error) {
-      console.error("Fetch logs error:", error);
-      return NextResponse.json({ error: "ログの取得に失敗しました" }, { status: 500 });
+      throw error;
     }
 
     if (!logs || logs.length === 0) {
       return NextResponse.json({
-        message: "未分類のログはありません",
+        message: "participant-only の未分類ログはありません",
         processed: 0,
         updated: 0,
         failed: 0,
+        errors: [],
       });
     }
 
-    // 各ログに対してGeminiで再分類を実行
     let processed = 0;
     let updated = 0;
     let failed = 0;
     const errors: Array<{ id: string; error: string }> = [];
 
     for (const log of logs) {
-      processed++;
-      try {
-        const OpenAI = (await import("openai")).default;
-        const client = new OpenAI({
-          apiKey: process.env.OPENROUTER_API_KEY,
-          baseURL: "https://openrouter.ai/api/v1"
-        });
+      processed += 1;
 
-        const transcript = log.messages
-          .map((m: any) => `${m.role === "user" ? "回答者" : "AI"}: ${m.content}`)
+      try {
+        const participantMessages =
+          Array.isArray(log.participant_messages) && log.participant_messages.length > 0
+            ? log.participant_messages
+            : (log.messages ?? []).filter((message: { role?: string }) => message.role === "user");
+
+        const transcript = participantMessages
+          .map((message: { messageIndex?: number; content?: string }) => {
+            const prefix = typeof message.messageIndex === "number" ? `[${message.messageIndex}] ` : "";
+            return `${prefix}${message.content ?? ""}`;
+          })
           .join("\n");
 
         const response = await client.chat.completions.create({
           model: "google/gemini-3-flash-preview",
           temperature: 0.2,
+          max_tokens: 500,
           messages: [
             {
               role: "system",
-              content: "あなたは調査インタビューの記録整理者です。回答者の発言を中心に要点とカテゴリ化したキーワードを抽出します。出力は必ずJSONのみ。",
+              content: "あなたは質的研究の補助者です。対象は参加者発話のみです。JSONのみを返してください。",
             },
             {
               role: "user",
-              content: `以下の会話履歴を要約し、カテゴリ化したキーワードを抽出してください。
+              content: `以下の participant-only transcript から、参加者が述べた課題をカテゴリ化してください。
 
-# 出力フォーマット（JSONのみ）
+出力形式:
 {
   "issueCategories": [
     { "category": "カテゴリ名", "items": ["項目1", "項目2"] }
   ]
 }
 
-# 制約
-- issueCategoriesは「現状の課題・困りごと」をカテゴリ別に整理
-- 例：「カリキュラム」「教授法」「評価」「人的資源」「時間・負担」
-- 該当する内容がない場合は空配列[]を返してください
+制約:
+- 参加者発話のみを使う
+- category は簡潔な見出し
+- items は参加者の表現に近い短句
+- 該当なしなら空配列
 
-# 会話履歴
+participant transcript:
 ${transcript}`,
             },
           ],
-          response_format: { type: "json_object" },
         });
 
-        const content = response.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error("No content in response");
-        }
+        const content = response.choices[0]?.message?.content ?? "";
+        const parsed = extractJson(content) as { issueCategories?: Array<{ category: string; items: string[] }> } | null;
+        const issueCategories = Array.isArray(parsed?.issueCategories) ? parsed.issueCategories : [];
 
-        const parsed = JSON.parse(content);
-        const issueCategories = parsed.issueCategories || [];
-
-        // 更新
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error: updateError } = await (supabase as any)
           .from("survey_logs")
-          .update({ issue_categories: issueCategories })
+          .update({
+            participant_issue_categories: issueCategories,
+            issue_categories: issueCategories,
+          })
           .eq("id", log.id);
 
         if (updateError) {
-          throw new Error(updateError.message);
+          throw updateError;
         }
 
-        updated++;
-      } catch (err) {
-        failed++;
+        updated += 1;
+      } catch (error) {
+        failed += 1;
         errors.push({
           id: log.id,
-          error: err instanceof Error ? err.message : "Unknown error",
+          error: error instanceof Error ? error.message : "Unknown error",
         });
       }
     }
@@ -127,7 +127,7 @@ ${transcript}`,
       errors,
     });
   } catch (error) {
-    console.error("Reclassify error:", error);
+    console.error("Reclassify issues error:", error);
     return NextResponse.json({ error: "再分類に失敗しました" }, { status: 500 });
   }
 }

@@ -2,7 +2,6 @@
  * Admin panel type definitions
  */
 
-// Word Cloud Types
 export interface WordCloudWord {
   text: string;
   value: number;
@@ -16,17 +15,18 @@ export interface WordCloudData {
       start: string;
       end: string;
     };
+    source: "participant_messages" | "conversation_topic_groups";
   };
 }
 
 export interface WordCloudApiResponse {
   words: WordCloudWord[];
-  metadata: WordCloudData['metadata'];
+  metadata: WordCloudData["metadata"];
 }
 
-// Word Cloud Query Parameters
 export interface WordCloudQueryParams {
-  timeRange?: '7d' | '30d' | '90d' | 'all';
+  timeRange?: "7d" | "30d" | "90d" | "all";
   minFrequency?: number;
   maxWords?: number;
+  source?: "participant_messages" | "conversation_topic_groups";
 }
