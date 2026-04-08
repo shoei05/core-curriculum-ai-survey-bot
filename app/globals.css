@@ -433,14 +433,31 @@ main {
   display: flex;
   gap: 8px;
   margin-top: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
 }
 
 .text-input {
   flex: 1;
+  min-width: min(100%, 280px);
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
   font-size: 1rem;
+}
+
+.input-action-btn {
+  min-height: 44px;
+}
+
+.voice-btn-recording {
+  border-color: transparent;
+  background: linear-gradient(135deg, #d85f4e 0%, #b7394f 100%);
+  color: #fff;
+}
+
+.voice-btn-recording:hover {
+  box-shadow: 0 12px 24px rgba(183, 57, 79, 0.18);
 }
 
 .note {

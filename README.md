@@ -6,6 +6,7 @@
 - デプロイ先: **Vercel**
 - フロント: Next.js（App Router）
 - AI: OpenAI（APIキーで差し替え可）
+- 音声入力: Mistral Audio Transcriptions
 - データ保存: Supabase（Postgres）※Vercel Postgresへ置換も可
 
 ---
@@ -21,6 +22,9 @@ npm i
 ```bash
 cp .env.example .env.local
 ```
+
+音声入力を有効にする場合は `MISTRAL_API_KEY` を設定してください。
+必要なら `MISTRAL_TRANSCRIPTION_MODEL` で文字起こしモデルを上書きできます。
 
 3. 開発サーバ起動
 ```bash

@@ -17,6 +17,9 @@ const TIME_LIMIT_SECONDS = 7 * 60;
 const EXTENSION_SECONDS = 3 * 60;
 const CHAT_TIMEOUT_MS = 25000;
 const SUMMARY_TIMEOUT_MS = 45000;
+const VOICE_TIMEOUT_MS = 45000;
+const MAX_RECORDING_MS = 90 * 1000;
+const RECORDING_MIME_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
 
 interface Message {
   id: string;
@@ -74,6 +77,58 @@ async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs: n
   }
 }
 
+async function fetchFormDataJsonWithTimeout(url: string, formData: FormData, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { method: "POST", body: formData, signal: controller.signal });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || "サーバーエラーが発生しました");
+    }
+    return data;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("timeout");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function getPreferredRecordingMimeType() {
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return RECORDING_MIME_TYPES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) ?? "";
+}
+
+function getRecordingFileExtension(mimeType: string) {
+  if (mimeType.includes("mp4")) {
+    return "m4a";
+  }
+
+  return "webm";
+}
+
+function mergeInputText(previous: string, next: string) {
+  const current = previous.trim();
+  const incoming = next.trim();
+
+  if (!incoming) {
+    return current;
+  }
+
+  if (!current) {
+    return incoming;
+  }
+
+  return `${current}\n${incoming}`;
+}
+
 export default function ChatPage() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -81,6 +136,9 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const extendConfirmTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingStopTimerRef = useRef<number | null>(null);
   const messagesRef = useRef<Message[]>([]);
   const sidePanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -107,7 +165,11 @@ export default function ChatPage() {
   const [codingSensitivity, setCodingSensitivity] = useState<CodingSensitivity | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [pendingChatRequest, setPendingChatRequest] = useState<PendingChatRequest | null>(null);
+  const [voiceInputSupported, setVoiceInputSupported] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -126,6 +188,35 @@ export default function ChatPage() {
     setRespondentType(storedRespondentType || "");
     setStartedAt(new Date().toISOString());
   }, [router]);
+
+  useEffect(() => {
+    setVoiceInputSupported(typeof window !== "undefined" && "MediaRecorder" in window && Boolean(navigator.mediaDevices?.getUserMedia));
+  }, []);
+
+  const clearRecordingStopTimer = useCallback(() => {
+    if (recordingStopTimerRef.current !== null) {
+      window.clearTimeout(recordingStopTimerRef.current);
+      recordingStopTimerRef.current = null;
+    }
+  }, []);
+
+  const stopMediaStream = useCallback(() => {
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearRecordingStopTimer();
+
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
+
+      stopMediaStream();
+    };
+  }, [clearRecordingStopTimer, stopMediaStream]);
 
   const focusSidePanel = useCallback(() => {
     setSidePanelFocus(true);
@@ -276,6 +367,138 @@ export default function ChatPage() {
     textareaRef.current.style.height = "auto";
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
   }, [input]);
+
+  const transcribeAudioBlob = useCallback(async (audioBlob: Blob, mimeType: string) => {
+    const file = new File([audioBlob], `survey-voice-input.${getRecordingFileExtension(mimeType)}`, {
+      type: mimeType || "audio/webm",
+    });
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("language", "ja");
+
+    const data = await fetchFormDataJsonWithTimeout("/api/transcribe", formData, VOICE_TIMEOUT_MS);
+    const text = typeof data.text === "string" ? data.text.trim() : "";
+
+    if (!text) {
+      throw new Error("文字起こし結果が空でした");
+    }
+
+    setInput((previous) => mergeInputText(previous, text));
+    setAudioError(null);
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    clearRecordingStopTimer();
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state === "inactive") {
+      return;
+    }
+
+    recorder.stop();
+  }, [clearRecordingStopTimer]);
+
+  const handleToggleRecording = useCallback(async () => {
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+
+    if (!voiceInputSupported) {
+      setAudioError("このブラウザでは音声入力を利用できません");
+      return;
+    }
+
+    if (isEnded || showExtendConfirmModal || isLoading || isTranscribingAudio) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredMimeType = getPreferredRecordingMimeType();
+      const recorder = preferredMimeType ? new MediaRecorder(stream, { mimeType: preferredMimeType }) : new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      let shouldTranscribe = true;
+
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      setAudioError(null);
+      setIsRecording(true);
+
+      recorder.addEventListener("dataavailable", (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      });
+
+      recorder.addEventListener("error", () => {
+        shouldTranscribe = false;
+        setIsRecording(false);
+        setAudioError("録音中にエラーが発生しました");
+        mediaRecorderRef.current = null;
+        clearRecordingStopTimer();
+        stopMediaStream();
+      });
+
+      recorder.addEventListener("stop", () => {
+        const effectiveMimeType = recorder.mimeType || preferredMimeType || "audio/webm";
+        mediaRecorderRef.current = null;
+        clearRecordingStopTimer();
+        stopMediaStream();
+        setIsRecording(false);
+
+        if (!shouldTranscribe) {
+          return;
+        }
+
+        const audioBlob = new Blob(chunks, { type: effectiveMimeType });
+        if (audioBlob.size === 0) {
+          setAudioError("録音データを取得できませんでした");
+          return;
+        }
+
+        setIsTranscribingAudio(true);
+        void (async () => {
+          try {
+            await transcribeAudioBlob(audioBlob, effectiveMimeType);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "音声入力に失敗しました";
+            const isTimeout = message === "timeout";
+            setAudioError(isTimeout ? "音声の文字起こしがタイムアウトしました。短めに録音して再試行してください。" : message);
+          } finally {
+            setIsTranscribingAudio(false);
+          }
+        })();
+      });
+
+      recorder.start();
+      recordingStopTimerRef.current = window.setTimeout(() => {
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      }, MAX_RECORDING_MS);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "マイクの利用を開始できませんでした";
+      stopMediaStream();
+      mediaRecorderRef.current = null;
+      clearRecordingStopTimer();
+      setIsRecording(false);
+      setAudioError(message.includes("Permission") ? "マイクへのアクセスが許可されていません" : "マイクの利用を開始できませんでした");
+    }
+  }, [
+    clearRecordingStopTimer,
+    isEnded,
+    isLoading,
+    isRecording,
+    isTranscribingAudio,
+    showExtendConfirmModal,
+    stopMediaStream,
+    stopRecording,
+    transcribeAudioBlob,
+    voiceInputSupported,
+  ]);
 
   const formatTime = (seconds: number) => {
     const minute = Math.floor(seconds / 60);
@@ -495,7 +718,21 @@ export default function ChatPage() {
     }
   };
 
-  const isInputDisabled = isLoading || isEnded || showExtendConfirmModal;
+  const isInputDisabled = isLoading || isEnded || showExtendConfirmModal || isRecording || isTranscribingAudio;
+  const inputPlaceholder = isRecording
+    ? "録音中..."
+    : isTranscribingAudio
+      ? "音声を文字起こし中..."
+      : isEnded || showExtendConfirmModal
+        ? "制限時間終了"
+        : "回答を入力してください...";
+  const voiceStatusMessage = isRecording
+    ? "録音中です。もう一度押すか、90秒で自動停止します。"
+    : isTranscribingAudio
+      ? "Mistral で文字起こししています..."
+      : voiceInputSupported
+        ? "マイク入力が使えます。録音後、文字起こし結果が入力欄へ入ります。"
+        : "このブラウザでは音声入力を利用できません。";
   const shouldShowChatTransfer = summaryRequested || isEnded;
 
   return (
@@ -549,6 +786,8 @@ export default function ChatPage() {
             </div>
           )}
 
+          {audioError && <div className="alert" style={{ marginBottom: 12 }}>{audioError}</div>}
+
           {!isEnded && (
             <form
               onSubmit={(event) => {
@@ -562,13 +801,21 @@ export default function ChatPage() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isInputDisabled ? "制限時間終了" : "回答を入力してください..."}
+                placeholder={inputPlaceholder}
                 disabled={isInputDisabled}
                 rows={1}
                 className="text-input"
                 style={{ resize: "none", fontFamily: "inherit", fontSize: 14, minHeight: 44 }}
               />
-              <button type="submit" disabled={!input.trim() || isInputDisabled} className="btn btn-primary">
+              <button
+                type="button"
+                onClick={() => void handleToggleRecording()}
+                disabled={!voiceInputSupported || isEnded || showExtendConfirmModal || isLoading || isTranscribingAudio}
+                className={`btn input-action-btn ${isRecording ? "voice-btn-recording" : "btn-ghost"}`}
+              >
+                {isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中..." : "音声入力"}
+              </button>
+              <button type="submit" disabled={!input.trim() || isInputDisabled} className="btn btn-primary input-action-btn">
                 送信
               </button>
             </form>
@@ -589,7 +836,9 @@ export default function ChatPage() {
           </div>
 
           <p className="note">
-            {isEnded ? "終了しました。右側のサマリーと分析結果をご確認ください。" : "Ctrl/Cmd + Enter で送信、Shift + Enter は改行です。個人を特定する情報は入力しないでください。"}
+            {isEnded
+              ? "終了しました。右側のサマリーと分析結果をご確認ください。"
+              : `Ctrl/Cmd + Enter で送信、Shift + Enter は改行です。${voiceStatusMessage} 個人を特定する情報は入力しないでください。`}
           </p>
         </section>
 
