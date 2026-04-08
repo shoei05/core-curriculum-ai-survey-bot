@@ -1085,6 +1085,12 @@ export default function ChatPage() {
             </form>
           )}
 
+          {!isEnded && voiceInputSupported && (
+            <div className="audio-privacy-note">
+              <strong>音声入力について:</strong> 録音した音声は本システムでは保存せず、文字起こし処理にのみ利用します。
+            </div>
+          )}
+
           <div className="summary-controls">
             <div className={`timer ${remainingTime < 60 ? "is-urgent" : ""}`}>
               残り {formatTime(remainingTime)}
