@@ -1,38 +1,4 @@
-import { CORE_CURRICULUM_ITEMS } from "@/lib/core-curriculum-items";
-
 // Model Core Curriculum knowledge base for RAG
-
-const TRANSCRIPTION_TERM_REFERENCES = [
-  "モデル・コア・カリキュラム（モデルコアカリキュラム、コアカリ）",
-  "医学教育モデル・コア・カリキュラム",
-  "令和4年度改訂版",
-  "アウトカム基盤型教育",
-  "診療参加型臨床実習",
-  "総合的に患者・生活者をみる姿勢",
-  "地域包括ケア",
-  "プライマリ・ケア",
-  "リサーチマインド",
-  "生涯学習",
-  "科学的探究",
-  "臨床推論",
-  "多職種連携",
-  "チーム医療",
-  "医療DX",
-  "医療安全",
-];
-
-const CORE_COMPETENCY_REFERENCES = [
-  "PR: プロフェッショナリズム",
-  "GE: 総合的に患者・生活者をみる姿勢",
-  "LL: 生涯にわたって共に学ぶ姿勢",
-  "RE: 科学的探究",
-  "PS: 専門知識に基づいた問題解決能力",
-  "IT: 情報・科学技術を活かす能力",
-  "CM: コミュニケーション能力",
-  "IP: 多職種連携能力",
-  "SO: 社会における医療の役割の理解",
-  "CS: 診療の実践",
-];
 
 export function getKnowledgePrompt(): string {
     return `
@@ -83,19 +49,4 @@ export function getKnowledgePrompt(): string {
 回答者がモデル・コア・カリキュラムについて「わからない」「詳しくない」と言った場合は、
 上記の概要を簡潔に説明してから質問を続けてください。
 `;
-}
-
-export function getTranscriptionCorrectionReference(): string {
-    const itemLines = Object.values(CORE_CURRICULUM_ITEMS).map((item) => `${item.code}: ${item.name}`);
-
-    return [
-        "## 優先して確認する用語",
-        ...TRANSCRIPTION_TERM_REFERENCES.map((term) => `- ${term}`),
-        "",
-        "## 資質・能力コード",
-        ...CORE_COMPETENCY_REFERENCES.map((term) => `- ${term}`),
-        "",
-        "## 項目コードと名称",
-        ...itemLines.map((line) => `- ${line}`),
-    ].join("\n");
 }

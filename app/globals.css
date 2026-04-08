@@ -303,12 +303,6 @@ main {
   margin-top: 16px;
 }
 
-.summary-controls .btn-end-summarize {
-  flex: 1 1 240px;
-  margin-top: 0;
-  width: auto;
-}
-
 .timer {
   padding: 6px 12px;
   border-radius: 999px;
@@ -575,6 +569,23 @@ main {
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+}
+
+.summary-card-action {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(197, 72, 123, 0.12);
+}
+
+.btn-end-summarize-side {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding: 10px 14px;
+  font-size: 0.95rem;
 }
 
 .report-export {
