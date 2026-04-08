@@ -460,6 +460,14 @@ main {
   box-shadow: 0 12px 24px rgba(183, 57, 79, 0.18);
 }
 
+.live-preview-card {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed #d6a7bc;
+  background: #fffafb;
+}
+
 .note {
   color: var(--muted);
   font-size: 0.85rem;

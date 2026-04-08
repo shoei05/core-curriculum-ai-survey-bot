@@ -21,6 +21,39 @@ const VOICE_TIMEOUT_MS = 45000;
 const MAX_RECORDING_MS = 90 * 1000;
 const RECORDING_MIME_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  isFinal: boolean;
+  length: number;
+  [index: number]: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error?: string;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort?: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -129,6 +162,34 @@ function mergeInputText(previous: string, next: string) {
   return `${current}\n${incoming}`;
 }
 
+function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
+function mergeLivePreviewText(finalText: string, interimText: string) {
+  const finalized = finalText.trim();
+  const interim = interimText.trim();
+
+  if (!finalized) {
+    return interim;
+  }
+
+  if (!interim) {
+    return finalized;
+  }
+
+  return /[\s。！？.!?]$/.test(finalized) ? `${finalized}${interim}` : `${finalized} ${interim}`;
+}
+
 export default function ChatPage() {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -139,6 +200,10 @@ export default function ChatPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recordingStopTimerRef = useRef<number | null>(null);
+  const speechRecognizerRef = useRef<SpeechRecognitionLike | null>(null);
+  const speechRestartTimerRef = useRef<number | null>(null);
+  const speechPreviewFinalRef = useRef("");
+  const speechPreviewInterimRef = useRef("");
   const messagesRef = useRef<Message[]>([]);
   const sidePanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -168,8 +233,12 @@ export default function ChatPage() {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [pendingChatRequest, setPendingChatRequest] = useState<PendingChatRequest | null>(null);
   const [voiceInputSupported, setVoiceInputSupported] = useState(false);
+  const [speechPreviewSupported, setSpeechPreviewSupported] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
+  const [livePreviewText, setLivePreviewText] = useState("");
+
+  const displayedInput = livePreviewText ? mergeInputText(input, livePreviewText) : input;
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -191,12 +260,20 @@ export default function ChatPage() {
 
   useEffect(() => {
     setVoiceInputSupported(typeof window !== "undefined" && "MediaRecorder" in window && Boolean(navigator.mediaDevices?.getUserMedia));
+    setSpeechPreviewSupported(Boolean(getSpeechRecognitionCtor()));
   }, []);
 
   const clearRecordingStopTimer = useCallback(() => {
     if (recordingStopTimerRef.current !== null) {
       window.clearTimeout(recordingStopTimerRef.current);
       recordingStopTimerRef.current = null;
+    }
+  }, []);
+
+  const clearSpeechRestartTimer = useCallback(() => {
+    if (speechRestartTimerRef.current !== null) {
+      window.clearTimeout(speechRestartTimerRef.current);
+      speechRestartTimerRef.current = null;
     }
   }, []);
 
@@ -208,15 +285,26 @@ export default function ChatPage() {
   useEffect(() => {
     return () => {
       clearRecordingStopTimer();
+      clearSpeechRestartTimer();
 
       const recorder = mediaRecorderRef.current;
       if (recorder && recorder.state !== "inactive") {
         recorder.stop();
       }
 
+       const recognizer = speechRecognizerRef.current;
+       speechRecognizerRef.current = null;
+       if (recognizer) {
+         try {
+           recognizer.stop();
+         } catch {
+           recognizer.abort?.();
+         }
+       }
+
       stopMediaStream();
     };
-  }, [clearRecordingStopTimer, stopMediaStream]);
+  }, [clearRecordingStopTimer, clearSpeechRestartTimer, stopMediaStream]);
 
   const focusSidePanel = useCallback(() => {
     setSidePanelFocus(true);
@@ -366,7 +454,113 @@ export default function ChatPage() {
     }
     textareaRef.current.style.height = "auto";
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-  }, [input]);
+  }, [displayedInput]);
+
+  const updateLivePreview = useCallback(() => {
+    setLivePreviewText(mergeLivePreviewText(speechPreviewFinalRef.current, speechPreviewInterimRef.current));
+  }, []);
+
+  const resetLivePreview = useCallback((clearAll = false) => {
+    speechPreviewInterimRef.current = "";
+    if (clearAll) {
+      speechPreviewFinalRef.current = "";
+    }
+    setLivePreviewText(clearAll ? "" : speechPreviewFinalRef.current.trim());
+  }, []);
+
+  const stopSpeechPreview = useCallback(
+    (clearAll = false) => {
+      clearSpeechRestartTimer();
+
+      const recognizer = speechRecognizerRef.current;
+      speechRecognizerRef.current = null;
+
+      if (recognizer) {
+        recognizer.onresult = null;
+        recognizer.onerror = null;
+        recognizer.onend = null;
+        try {
+          recognizer.stop();
+        } catch {
+          recognizer.abort?.();
+        }
+      }
+
+      resetLivePreview(clearAll);
+    },
+    [clearSpeechRestartTimer, resetLivePreview],
+  );
+
+  const startSpeechPreview = useCallback(() => {
+    const SpeechRecognition = getSpeechRecognitionCtor();
+    if (!SpeechRecognition || speechRecognizerRef.current) {
+      return false;
+    }
+
+    const recognizer = new SpeechRecognition();
+    recognizer.lang = "ja-JP";
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+
+    recognizer.onresult = (event) => {
+      let finalText = speechPreviewFinalRef.current;
+      let interimText = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = String(result?.[0]?.transcript || "").trim();
+        if (!transcript) {
+          continue;
+        }
+
+        if (result.isFinal) {
+          finalText = mergeInputText(finalText, transcript);
+        } else {
+          interimText = transcript;
+        }
+      }
+
+      speechPreviewFinalRef.current = finalText;
+      speechPreviewInterimRef.current = interimText;
+      updateLivePreview();
+    };
+
+    recognizer.onerror = () => {
+      speechRecognizerRef.current = null;
+      if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
+        return;
+      }
+
+      clearSpeechRestartTimer();
+      speechRestartTimerRef.current = window.setTimeout(() => {
+        void startSpeechPreview();
+      }, 900);
+    };
+
+    recognizer.onend = () => {
+      speechRecognizerRef.current = null;
+      speechPreviewInterimRef.current = "";
+      updateLivePreview();
+
+      if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
+        return;
+      }
+
+      clearSpeechRestartTimer();
+      speechRestartTimerRef.current = window.setTimeout(() => {
+        void startSpeechPreview();
+      }, 700);
+    };
+
+    try {
+      recognizer.start();
+      speechRecognizerRef.current = recognizer;
+      return true;
+    } catch {
+      speechRecognizerRef.current = null;
+      return false;
+    }
+  }, [clearSpeechRestartTimer, updateLivePreview]);
 
   const transcribeAudioBlob = useCallback(async (audioBlob: Blob, mimeType: string) => {
     const file = new File([audioBlob], `survey-voice-input.${getRecordingFileExtension(mimeType)}`, {
@@ -384,6 +578,9 @@ export default function ChatPage() {
     }
 
     setInput((previous) => mergeInputText(previous, text));
+    speechPreviewFinalRef.current = "";
+    speechPreviewInterimRef.current = "";
+    setLivePreviewText("");
     setAudioError(null);
     window.requestAnimationFrame(() => {
       textareaRef.current?.focus();
@@ -392,13 +589,14 @@ export default function ChatPage() {
 
   const stopRecording = useCallback(() => {
     clearRecordingStopTimer();
+    stopSpeechPreview(false);
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === "inactive") {
       return;
     }
 
     recorder.stop();
-  }, [clearRecordingStopTimer]);
+  }, [clearRecordingStopTimer, stopSpeechPreview]);
 
   const handleToggleRecording = useCallback(async () => {
     if (isRecording) {
@@ -422,10 +620,16 @@ export default function ChatPage() {
       const chunks: Blob[] = [];
       let shouldTranscribe = true;
 
+      speechPreviewFinalRef.current = "";
+      speechPreviewInterimRef.current = "";
+      setLivePreviewText("");
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       setAudioError(null);
       setIsRecording(true);
+      if (speechPreviewSupported) {
+        startSpeechPreview();
+      }
 
       recorder.addEventListener("dataavailable", (event) => {
         if (event.data.size > 0) {
@@ -439,6 +643,7 @@ export default function ChatPage() {
         setAudioError("録音中にエラーが発生しました");
         mediaRecorderRef.current = null;
         clearRecordingStopTimer();
+        stopSpeechPreview(true);
         stopMediaStream();
       });
 
@@ -446,6 +651,7 @@ export default function ChatPage() {
         const effectiveMimeType = recorder.mimeType || preferredMimeType || "audio/webm";
         mediaRecorderRef.current = null;
         clearRecordingStopTimer();
+        stopSpeechPreview(false);
         stopMediaStream();
         setIsRecording(false);
 
@@ -466,7 +672,20 @@ export default function ChatPage() {
           } catch (error) {
             const message = error instanceof Error ? error.message : "音声入力に失敗しました";
             const isTimeout = message === "timeout";
-            setAudioError(isTimeout ? "音声の文字起こしがタイムアウトしました。短めに録音して再試行してください。" : message);
+            const browserPreview = speechPreviewFinalRef.current.trim() || livePreviewText.trim();
+            if (browserPreview) {
+              setInput((previous) => mergeInputText(previous, browserPreview));
+              speechPreviewFinalRef.current = "";
+              speechPreviewInterimRef.current = "";
+              setLivePreviewText("");
+              setAudioError(
+                isTimeout
+                  ? "Mistral の文字起こしがタイムアウトしたため、録音中のリアルタイム表示を入力欄へ残しました。"
+                  : `${message} 録音中のリアルタイム表示を入力欄へ残しました。`,
+              );
+            } else {
+              setAudioError(isTimeout ? "音声の文字起こしがタイムアウトしました。短めに録音して再試行してください。" : message);
+            }
           } finally {
             setIsTranscribingAudio(false);
           }
@@ -484,6 +703,7 @@ export default function ChatPage() {
       stopMediaStream();
       mediaRecorderRef.current = null;
       clearRecordingStopTimer();
+      stopSpeechPreview(true);
       setIsRecording(false);
       setAudioError(message.includes("Permission") ? "マイクへのアクセスが許可されていません" : "マイクの利用を開始できませんでした");
     }
@@ -493,9 +713,13 @@ export default function ChatPage() {
     isLoading,
     isRecording,
     isTranscribingAudio,
+    livePreviewText,
+    speechPreviewSupported,
     showExtendConfirmModal,
+    startSpeechPreview,
     stopMediaStream,
     stopRecording,
+    stopSpeechPreview,
     transcribeAudioBlob,
     voiceInputSupported,
   ]);
@@ -727,11 +951,17 @@ export default function ChatPage() {
         ? "制限時間終了"
         : "回答を入力してください...";
   const voiceStatusMessage = isRecording
-    ? "録音中です。もう一度押すか、90秒で自動停止します。"
+    ? speechPreviewSupported
+      ? "録音中です。リアルタイム表示はブラウザ認識、停止後に Mistral で確定します。"
+      : "録音中です。もう一度押すか、90秒で自動停止します。停止後に Mistral で文字起こしします。"
     : isTranscribingAudio
-      ? "Mistral で文字起こししています..."
+      ? livePreviewText
+        ? "録音中のリアルタイム表示を保ったまま、Mistral で確定しています..."
+        : "Mistral で文字起こししています..."
       : voiceInputSupported
-        ? "マイク入力が使えます。録音後、文字起こし結果が入力欄へ入ります。"
+        ? speechPreviewSupported
+          ? "マイク入力とリアルタイム表示が使えます。停止後に Mistral の結果で更新されます。"
+          : "マイク入力が使えます。録音後、文字起こし結果が入力欄へ入ります。"
         : "このブラウザでは音声入力を利用できません。";
   const shouldShowChatTransfer = summaryRequested || isEnded;
 
@@ -788,6 +1018,13 @@ export default function ChatPage() {
 
           {audioError && <div className="alert" style={{ marginBottom: 12 }}>{audioError}</div>}
 
+          {livePreviewText && (
+            <div className="live-preview-card">
+              <div className="message-role">{isRecording ? "リアルタイム表示" : "録音プレビュー"}</div>
+              <div className="message-content">{livePreviewText}</div>
+            </div>
+          )}
+
           {!isEnded && (
             <form
               onSubmit={(event) => {
@@ -798,7 +1035,7 @@ export default function ChatPage() {
             >
               <textarea
                 ref={textareaRef}
-                value={input}
+                value={displayedInput}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={inputPlaceholder}
@@ -810,7 +1047,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => void handleToggleRecording()}
-                disabled={!voiceInputSupported || isEnded || showExtendConfirmModal || isLoading || isTranscribingAudio}
+                disabled={!voiceInputSupported || isEnded || showExtendConfirmModal || isLoading}
                 className={`btn input-action-btn ${isRecording ? "voice-btn-recording" : "btn-ghost"}`}
               >
                 {isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中..." : "音声入力"}
