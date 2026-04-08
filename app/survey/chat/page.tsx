@@ -963,6 +963,7 @@ export default function ChatPage() {
           ? "マイク入力とリアルタイム表示が使えます。停止後に Mistral の結果で更新されます。"
           : "マイク入力が使えます。録音後、文字起こし結果が入力欄へ入ります。"
         : "このブラウザでは音声入力を利用できません。";
+  const isVoicePreviewExpanded = isRecording || isTranscribingAudio || Boolean(livePreviewText);
   const shouldShowChatTransfer = summaryRequested || isEnded;
 
   return (
@@ -980,7 +981,7 @@ export default function ChatPage() {
 
       {isExpired && !showExtendConfirmModal && isEnded && <div className="alert">制限時間が終了しました。ご協力ありがとうございました。</div>}
 
-      <div className="survey-grid">
+      <div className={`survey-grid ${isVoicePreviewExpanded ? "is-live-previewing" : ""}`}>
         <section className="chat-panel">
           <div className="message-stack">
             {messages.map((message, index) => (
@@ -1019,7 +1020,7 @@ export default function ChatPage() {
           {audioError && <div className="alert" style={{ marginBottom: 12 }}>{audioError}</div>}
 
           {livePreviewText && (
-            <div className="live-preview-card">
+            <div className={`live-preview-card ${isVoicePreviewExpanded ? "is-expanded" : ""}`}>
               <div className="message-role">{isRecording ? "リアルタイム表示" : "録音プレビュー"}</div>
               <div className="message-content">{livePreviewText}</div>
             </div>
