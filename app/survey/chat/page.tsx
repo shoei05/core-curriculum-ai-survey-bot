@@ -162,6 +162,21 @@ function mergeInputText(previous: string, next: string) {
   return `${current}\n${incoming}`;
 }
 
+function appendPreviewSegment(previous: string, next: string) {
+  const current = previous.trim();
+  const incoming = next.trim();
+
+  if (!incoming) {
+    return current;
+  }
+
+  if (!current) {
+    return incoming;
+  }
+
+  return /[\s。！？.!?、,]$/.test(current) ? `${current}${incoming}` : `${current} ${incoming}`;
+}
+
 function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
   if (typeof window === "undefined") {
     return null;
@@ -176,18 +191,7 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
 }
 
 function mergeLivePreviewText(finalText: string, interimText: string) {
-  const finalized = finalText.trim();
-  const interim = interimText.trim();
-
-  if (!finalized) {
-    return interim;
-  }
-
-  if (!interim) {
-    return finalized;
-  }
-
-  return /[\s。！？.!?]$/.test(finalized) ? `${finalized}${interim}` : `${finalized} ${interim}`;
+  return appendPreviewSegment(finalText, interimText);
 }
 
 export default function ChatPage() {
@@ -498,15 +502,16 @@ export default function ChatPage() {
     }
 
     const recognizer = new SpeechRecognition();
+    const committedPreviewText = speechPreviewFinalRef.current;
     recognizer.lang = "ja-JP";
     recognizer.continuous = true;
     recognizer.interimResults = true;
 
     recognizer.onresult = (event) => {
-      let finalText = speechPreviewFinalRef.current;
+      let finalText = committedPreviewText;
       let interimText = "";
 
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      for (let index = 0; index < event.results.length; index += 1) {
         const result = event.results[index];
         const transcript = String(result?.[0]?.transcript || "").trim();
         if (!transcript) {
@@ -514,9 +519,9 @@ export default function ChatPage() {
         }
 
         if (result.isFinal) {
-          finalText = mergeInputText(finalText, transcript);
+          finalText = appendPreviewSegment(finalText, transcript);
         } else {
-          interimText = transcript;
+          interimText = appendPreviewSegment(interimText, transcript);
         }
       }
 
