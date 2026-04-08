@@ -50,6 +50,8 @@ function formatErrorMessage(payload: Record<string, unknown>, fallback: string) 
 
 function normalizeDomainTerms(text: string) {
   return text
+    .replace(/生成\s*[aA][iI]/gu, "生成AI")
+    .replace(/生成愛/gu, "生成AI")
     .replace(/医学教育モデル[\s・-]*コア[\s・-]*カリキュラム/gu, "医学教育モデル・コア・カリキュラム")
     .replace(/モデル[\s・-]*コア[\s・-]*カリキュラム/gu, "モデル・コア・カリキュラム")
     .replace(/コア[\s・-]*カリ/gu, "コアカリ")

@@ -88,6 +88,14 @@ const MicrophoneIcon = () => (
   </svg>
 );
 
+const VoiceBusyIndicator = () => (
+  <span className="voice-busy-indicator" aria-hidden="true">
+    <span />
+    <span />
+    <span />
+  </span>
+);
+
 function getFallbackGreeting(respondentType?: string | null) {
   const greetings: Record<string, string> = {
     faculty: "ご回答ありがとうございます。まず、現場で課題を強く感じた具体的な場面を1つ教えてください。",
@@ -466,7 +474,7 @@ export default function ChatPage() {
       return;
     }
     textareaRef.current.style.height = "auto";
-    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 240)}px`;
   }, [displayedInput]);
 
   const updateLivePreview = useCallback(() => {
@@ -1055,9 +1063,9 @@ export default function ChatPage() {
                 onKeyDown={handleKeyDown}
                 placeholder={inputPlaceholder}
                 disabled={isInputDisabled}
-                rows={1}
+                rows={3}
                 className="text-input"
-                style={{ resize: "none", fontFamily: "inherit", fontSize: 14, minHeight: 44 }}
+                style={{ resize: "none", fontFamily: "inherit", fontSize: 14, minHeight: 92 }}
               />
               <button
                 type="button"
@@ -1068,7 +1076,8 @@ export default function ChatPage() {
                 }`}
               >
                 <MicrophoneIcon />
-                <span>{isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中..." : "マイク入力"}</span>
+                <span>{isRecording ? "録音停止" : isTranscribingAudio ? "文字起こし中" : "マイク入力"}</span>
+                {isTranscribingAudio && <VoiceBusyIndicator />}
               </button>
               <button type="submit" disabled={!input.trim() || isInputDisabled} className="btn btn-primary input-action-btn">
                 送信

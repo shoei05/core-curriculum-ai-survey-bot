@@ -438,10 +438,11 @@ main {
 .text-input {
   flex: 1;
   min-width: min(100%, 280px);
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--border);
   font-size: 1rem;
+  line-height: 1.6;
 }
 
 .input-action-btn {
@@ -459,6 +460,31 @@ main {
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+}
+
+.voice-busy-indicator {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  min-width: 18px;
+  height: 16px;
+}
+
+.voice-busy-indicator span {
+  width: 4px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.55;
+  animation: voice-busy-bars 0.9s ease-in-out infinite;
+}
+
+.voice-busy-indicator span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.voice-busy-indicator span:nth-child(3) {
+  animation-delay: 0.24s;
 }
 
 .voice-btn-idle {
@@ -796,5 +822,17 @@ main {
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+@keyframes voice-busy-bars {
+  0%,
+  100% {
+    transform: scaleY(0.7);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scaleY(1.65);
+    opacity: 1;
   }
 }
