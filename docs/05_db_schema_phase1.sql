@@ -6,7 +6,20 @@ create table if not exists form_responses (
 
   respondent_type text not null check (respondent_type in ('faculty', 'staff', 'student', 'practitioner')),
   additional_roles text[] not null default '{}'::text[],
-  university_type text check (university_type in ('national', 'public', 'private')),
+  university_type text check (
+    university_type in (
+      'national',
+      'public',
+      'private',
+      'university',
+      'university_hospital',
+      'public_hospital',
+      'private_hospital',
+      'clinic',
+      'government',
+      'other'
+    )
+  ),
 
   specialty text check (specialty in ('basic', 'clinical', 'social', 'education', 'other')),
   experience_years text check (experience_years in ('under_5', '5_10', 'over_10')),

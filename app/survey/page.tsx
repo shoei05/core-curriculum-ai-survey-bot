@@ -10,13 +10,13 @@ import type {
   RespondentType,
   Specialty,
   StudentYear,
-  UniversityType,
 } from "@/types/survey";
 import {
   CHALLENGE_LABELS,
   CONSENT_VERSION,
   EXPERIENCE_YEARS_LABELS,
   EXPECTATION_LABELS,
+  INSTITUTION_TYPE_OPTIONS,
   RESPONDENT_TYPE_LABELS,
   SPECIALTY_LABELS,
   STUDENT_YEAR_LABELS,
@@ -109,6 +109,9 @@ export default function SurveyPage() {
   }, [step]);
 
   const includesRole = (role: RespondentType) => selectedRoles.includes(role);
+  const needsInstitutionType = selectedRoles.length > 0;
+  const needsExperienceYears = includesRole("faculty") || includesRole("staff") || includesRole("practitioner");
+  const experienceYearsLabel = includesRole("faculty") && !includesRole("staff") && !includesRole("practitioner") ? "教育経験" : "経験年数";
 
   const updateFormData = <K extends keyof FormResponse>(key: K, value: FormResponse[K]) => {
     setFormData((current) => ({ ...current, [key]: value }));
@@ -156,6 +159,9 @@ export default function SurveyPage() {
       if (includesRole("faculty") && !(formData.specialty && formData.experience_years)) {
         return false;
       }
+      if (!includesRole("faculty") && needsExperienceYears && !formData.experience_years) {
+        return false;
+      }
       if (includesRole("student") && !formData.student_year) {
         return false;
       }
@@ -188,9 +194,9 @@ export default function SurveyPage() {
     const submitData: FormResponse = {
       respondent_type: respondentType,
       additional_roles: toAdditionalRoles(selectedRoles, respondentType),
-      university_type: formData.university_type,
+      university_type: needsInstitutionType ? formData.university_type : undefined,
       specialty: includesRole("faculty") ? formData.specialty : undefined,
-      experience_years: includesRole("faculty") ? formData.experience_years : undefined,
+      experience_years: needsExperienceYears ? formData.experience_years : undefined,
       student_year: includesRole("student") ? formData.student_year : undefined,
       practitioner_profession: includesRole("practitioner")
         ? formData.practitioner_profession?.trim() || undefined
@@ -433,16 +439,16 @@ export default function SurveyPage() {
         </div>
       )}
 
-      {(includesRole("faculty") || includesRole("student")) && (
+      {needsInstitutionType && (
         <div style={{ marginBottom: 24 }}>
           <label style={{ display: "block", fontWeight: 600, marginBottom: 12 }}>
-            大学の設置形態 <span style={{ color: "#999", fontSize: 14 }}>（任意）</span>
+            所属機関の種別 <span style={{ color: "#999", fontSize: 14 }}>（任意）</span>
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-            {(Object.entries(UNIVERSITY_TYPE_LABELS) as [UniversityType, string][]).map(([value, label]) =>
+            {INSTITUTION_TYPE_OPTIONS.map((value) =>
               renderChoiceCard(
                 formData.university_type === value,
-                label,
+                UNIVERSITY_TYPE_LABELS[value],
                 <input
                   type="radio"
                   name="university_type"
@@ -481,7 +487,7 @@ export default function SurveyPage() {
 
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: "block", fontWeight: 600, marginBottom: 12 }}>
-              教育経験 <span style={{ color: "#b00020" }}>*</span>
+              {experienceYearsLabel} <span style={{ color: "#b00020" }}>*</span>
             </label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
               {(Object.entries(EXPERIENCE_YEARS_LABELS) as [ExperienceYears, string][]).map(([value, label]) =>
@@ -500,6 +506,29 @@ export default function SurveyPage() {
             </div>
           </div>
         </>
+      )}
+
+      {!includesRole("faculty") && needsExperienceYears && (
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 12 }}>
+            {experienceYearsLabel} <span style={{ color: "#b00020" }}>*</span>
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+            {(Object.entries(EXPERIENCE_YEARS_LABELS) as [ExperienceYears, string][]).map(([value, label]) =>
+              renderChoiceCard(
+                formData.experience_years === value,
+                label,
+                <input
+                  type="radio"
+                  name="experience_years"
+                  checked={formData.experience_years === value}
+                  onChange={() => updateFormData("experience_years", value)}
+                  style={{ marginTop: 4, width: 18, height: 18 }}
+                />,
+              ),
+            )}
+          </div>
+        </div>
       )}
 
       {includesRole("student") && (
@@ -534,7 +563,7 @@ export default function SurveyPage() {
             className="text-input"
             value={formData.practitioner_profession ?? ""}
             onChange={(event) => updateFormData("practitioner_profession", event.target.value)}
-            placeholder="例: 医師、看護師、薬剤師"
+            placeholder="例: 医師、看護師、薬剤師、リハビリ職"
             style={{ width: "100%" }}
           />
         </div>

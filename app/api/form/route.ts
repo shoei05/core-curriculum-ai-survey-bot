@@ -34,7 +34,20 @@ const FormResponseSchema = z
   .object({
     respondent_type: RespondentTypeSchema,
     additional_roles: z.array(RespondentTypeSchema).max(3).optional().default([]),
-    university_type: z.enum(["national", "public", "private"]).optional(),
+    university_type: z
+      .enum([
+        "national",
+        "public",
+        "private",
+        "university",
+        "university_hospital",
+        "public_hospital",
+        "private_hospital",
+        "clinic",
+        "government",
+        "other",
+      ])
+      .optional(),
     specialty: z.enum(["basic", "clinical", "social", "education", "other"]).optional(),
     experience_years: z.enum(["under_5", "5_10", "over_10"]).optional(),
     student_year: z.enum(["1_2", "3_4", "5_6"]).optional(),
@@ -51,6 +64,8 @@ const FormResponseSchema = z
   .superRefine((data, ctx) => {
     const roles = new Set([data.respondent_type, ...data.additional_roles]);
 
+    const requiresExperienceYears = roles.has("faculty") || roles.has("staff") || roles.has("practitioner");
+
     if (roles.has("faculty")) {
       if (!data.specialty) {
         ctx.addIssue({
@@ -59,13 +74,14 @@ const FormResponseSchema = z
           message: "教員を含む場合、専門分野は必須です",
         });
       }
-      if (!data.experience_years) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["experience_years"],
-          message: "教員を含む場合、教育経験は必須です",
-        });
-      }
+    }
+
+    if (requiresExperienceYears && !data.experience_years) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["experience_years"],
+        message: "教員・職員・医療者を含む場合、経験年数は必須です",
+      });
     }
 
     if (roles.has("student") && !data.student_year) {
@@ -138,6 +154,13 @@ export async function POST(req: Request) {
     }
 
     if (result.error) {
+      const errorMessage = String(result.error.message ?? "");
+      if (errorMessage.includes("university_type")) {
+        return NextResponse.json(
+          { error: "所属機関の種別を保存できませんでした。DB schema の制約更新が必要です。" },
+          { status: 500 },
+        );
+      }
       console.error("Supabase insert error:", result.error);
       return NextResponse.json({ error: "データの保存に失敗しました" }, { status: 500 });
     }

@@ -3,13 +3,23 @@
 // 回答者タイプ
 export type RespondentType = "faculty" | "staff" | "student" | "practitioner";
 
-// 大学設置形態
-export type UniversityType = "national" | "public" | "private";
+// 所属機関の種別（legacy 値を含む）
+export type UniversityType =
+  | "national"
+  | "public"
+  | "private"
+  | "university"
+  | "university_hospital"
+  | "public_hospital"
+  | "private_hospital"
+  | "clinic"
+  | "government"
+  | "other";
 
 // 教員専門分野
 export type Specialty = "basic" | "clinical" | "social" | "education" | "other";
 
-// 教育経験年数
+// 経験年数
 export type ExperienceYears = "under_5" | "5_10" | "over_10";
 
 // 学生学年
@@ -263,10 +273,27 @@ export const RESPONDENT_TYPE_LABELS: Record<RespondentType, string> = {
 };
 
 export const UNIVERSITY_TYPE_LABELS: Record<UniversityType, string> = {
+  university: "大学・医学部",
+  university_hospital: "大学病院・医学部附属病院",
+  public_hospital: "公立・公的病院",
+  private_hospital: "民間病院",
+  clinic: "診療所・クリニック",
+  government: "行政・関係団体",
+  other: "その他",
   national: "国立",
   public: "公立",
   private: "私立",
 };
+
+export const INSTITUTION_TYPE_OPTIONS = [
+  "university",
+  "university_hospital",
+  "public_hospital",
+  "private_hospital",
+  "clinic",
+  "government",
+  "other",
+] as const satisfies readonly UniversityType[];
 
 export const SPECIALTY_LABELS: Record<Specialty, string> = {
   basic: "基礎系",

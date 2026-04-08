@@ -27,6 +27,26 @@ where consent_given is null
    or consent_version is null
    or consented_at is null;
 
+alter table if exists form_responses
+  drop constraint if exists form_responses_university_type_check;
+
+alter table if exists form_responses
+  add constraint form_responses_university_type_check
+  check (
+    university_type is null or university_type in (
+      'national',
+      'public',
+      'private',
+      'university',
+      'university_hospital',
+      'public_hospital',
+      'private_hospital',
+      'clinic',
+      'government',
+      'other'
+    )
+  );
+
 alter table if exists survey_logs
   add column if not exists conversation_summary_bullets jsonb not null default '[]'::jsonb,
   add column if not exists conversation_topic_groups jsonb not null default '[]'::jsonb,

@@ -114,7 +114,7 @@ export function buildFormContext(formResponse: Partial<FormResponse>): string[] 
 
   const universityType = getUniversityLabel(formResponse.university_type);
   if (universityType) {
-    context.push(`大学の設置形態: ${universityType}`);
+    context.push(`所属機関の種別: ${universityType}`);
   }
 
   const specialty = getSpecialtyLabel(formResponse.specialty);
@@ -124,7 +124,7 @@ export function buildFormContext(formResponse: Partial<FormResponse>): string[] 
 
   const experienceYears = getExperienceLabel(formResponse.experience_years);
   if (experienceYears) {
-    context.push(`教育経験: ${experienceYears}`);
+    context.push(`経験年数: ${experienceYears}`);
   }
 
   const studentYear = getStudentYearLabel(formResponse.student_year);

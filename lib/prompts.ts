@@ -2,6 +2,7 @@
 
 import type { RespondentType, FormResponse } from '@/types/survey';
 import { getKnowledgePrompt } from './knowledge';
+import { getExperienceLabel, getUniversityLabel } from './survey-helpers';
 
 // 共通ベースプロンプト
 const BASE_PROMPT = `あなたは医学教育モデル・コア・カリキュラム改定に向けた調査を行うインタビュアーです。
@@ -50,6 +51,9 @@ export function generateStaffPrompt(formData: Partial<FormResponse>): string {
 
 【回答者情報】
 - 回答者タイプ: 事務職員
+- 所属機関の種別: ${getUniversityLabel(formData.university_type) || '未回答'}
+- 経験年数: ${getExperienceLabel(formData.experience_years) || '未回答'}
+- 職員としての担当: ${formData.staff_role || '未回答'}
 - 課題認識: ${challenges}
 - 改定への期待: ${expectations}
 
