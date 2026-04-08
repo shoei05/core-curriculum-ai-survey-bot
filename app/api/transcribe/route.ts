@@ -1,3 +1,5 @@
+import { getTranscriptionContextBiasTerms } from "@/lib/knowledge";
+
 const DEFAULT_MISTRAL_BASE_URL = "https://api.mistral.ai";
 const DEFAULT_TRANSCRIPTION_MODEL = "voxtral-mini-latest";
 const MAX_AUDIO_FILE_BYTES = 4 * 1024 * 1024;
@@ -46,6 +48,17 @@ function formatErrorMessage(payload: Record<string, unknown>, fallback: string) 
   return fallback;
 }
 
+function normalizeDomainTerms(text: string) {
+  return text
+    .replace(/医学教育モデル[\s・-]*コア[\s・-]*カリキュラム/gu, "医学教育モデル・コア・カリキュラム")
+    .replace(/モデル[\s・-]*コア[\s・-]*カリキュラム/gu, "モデル・コア・カリキュラム")
+    .replace(/コア[\s・-]*カリ/gu, "コアカリ")
+    .replace(/アウトカム[\s・-]*基盤型教育/gu, "アウトカム基盤型教育")
+    .replace(/診療参加型[\s・-]*臨床実習/gu, "診療参加型臨床実習")
+    .replace(/プライマリ[\s・-]*ケア/gu, "プライマリ・ケア")
+    .replace(/リサーチ[\s・-]*マインド/gu, "リサーチマインド");
+}
+
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
@@ -76,6 +89,7 @@ export async function POST(req: Request) {
     upstreamForm.set("model", model);
     upstreamForm.set("language", language);
     upstreamForm.set("file", file, file.name || "survey-input.webm");
+    upstreamForm.set("context_bias", getTranscriptionContextBiasTerms().join(","));
 
     const response = await fetch(`${DEFAULT_MISTRAL_BASE_URL}/v1/audio/transcriptions`, {
       method: "POST",
@@ -91,7 +105,7 @@ export async function POST(req: Request) {
       return json({ error: message }, { status: response.status });
     }
 
-    const text = String(payload.text || "").trim();
+    const text = normalizeDomainTerms(String(payload.text || "").trim());
     if (!text) {
       return json({ error: "文字起こし結果が空でした" }, { status: 502 });
     }

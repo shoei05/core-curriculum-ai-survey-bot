@@ -1,4 +1,29 @@
+import { CORE_CURRICULUM_ITEMS } from "@/lib/core-curriculum-items";
+
 // Model Core Curriculum knowledge base for RAG
+
+const TRANSCRIPTION_CONTEXT_BIAS_TERMS = [
+  "コアカリ",
+  "モデル・コア・カリキュラム",
+  "医学教育モデル・コア・カリキュラム",
+  "令和4年度改訂版",
+  "アウトカム基盤型教育",
+  "診療参加型臨床実習",
+  "総合的に患者・生活者をみる姿勢",
+  "生涯にわたって共に学ぶ姿勢",
+  "科学的探究",
+  "専門知識に基づいた問題解決能力",
+  "情報・科学技術を活かす能力",
+  "コミュニケーション能力",
+  "多職種連携能力",
+  "社会における医療の役割の理解",
+  "診療の実践",
+  "地域包括ケア",
+  "プライマリ・ケア",
+  "リサーチマインド",
+  "医療DX",
+  "医療安全",
+];
 
 export function getKnowledgePrompt(): string {
     return `
@@ -49,4 +74,28 @@ export function getKnowledgePrompt(): string {
 回答者がモデル・コア・カリキュラムについて「わからない」「詳しくない」と言った場合は、
 上記の概要を簡潔に説明してから質問を続けてください。
 `;
+}
+
+export function getTranscriptionContextBiasTerms(): string[] {
+  const competencyTerms = [
+    "プロフェッショナリズム",
+    "総合的に患者・生活者をみる姿勢",
+    "生涯にわたって共に学ぶ姿勢",
+    "科学的探究",
+    "専門知識に基づいた問題解決能力",
+    "情報・科学技術を活かす能力",
+    "コミュニケーション能力",
+    "多職種連携能力",
+    "社会における医療の役割の理解",
+    "診療の実践",
+  ];
+
+  return Array.from(
+    new Set([
+      ...TRANSCRIPTION_CONTEXT_BIAS_TERMS,
+      ...competencyTerms,
+      ...Object.values(CORE_CURRICULUM_ITEMS).map((item) => item.code),
+      ...Object.values(CORE_CURRICULUM_ITEMS).map((item) => item.name),
+    ]),
+  ).slice(0, 100);
 }
