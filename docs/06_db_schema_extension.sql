@@ -128,7 +128,8 @@ set participant_messages = coalesce(
 where participant_messages = '[]'::jsonb
   and messages is not null;
 
-create or replace view survey_analysis_v2 as
+create or replace view survey_analysis_v2
+with (security_invoker = true) as
 select
   fr.id as response_id,
   fr.session_id,

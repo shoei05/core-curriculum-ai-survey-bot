@@ -9,6 +9,7 @@ create table if not exists interview_templates (
   is_published boolean not null default true,
   created_at timestamptz not null default now()
 );
+alter table interview_templates enable row level security;
 
 create table if not exists sessions (
   id uuid primary key default gen_random_uuid(),
@@ -17,6 +18,7 @@ create table if not exists sessions (
   started_at timestamptz not null default now(),
   ended_at timestamptz
 );
+alter table sessions enable row level security;
 
 create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
@@ -25,6 +27,7 @@ create table if not exists messages (
   content text not null,
   created_at timestamptz not null default now()
 );
+alter table messages enable row level security;
 
 -- 追加: サマリー + キーワード + 会話ログの保存（Supabase推奨）
 create table if not exists survey_logs (
@@ -39,9 +42,8 @@ create table if not exists survey_logs (
   competency_categories jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
+alter table survey_logs enable row level security;
 
--- RLS例（匿名キーでinsertする場合に有効化）
--- alter table survey_logs enable row level security;
--- create policy "allow insert survey logs"
--- on survey_logs for insert to anon
--- with check (true);
+-- This app writes through server-side API routes using the service_role key.
+-- Do not add anon/authenticated table policies unless direct browser access is
+-- intentionally introduced and scoped with strict row ownership checks.

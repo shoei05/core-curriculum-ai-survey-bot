@@ -38,6 +38,7 @@ create table if not exists form_responses (
 
   created_at timestamptz not null default now()
 );
+alter table form_responses enable row level security;
 
 create index if not exists idx_form_responses_created_at on form_responses(created_at desc);
 create index if not exists idx_form_responses_respondent_type on form_responses(respondent_type);
